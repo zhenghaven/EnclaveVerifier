@@ -4,16 +4,24 @@ use enclave_verifier::ast;
 
 fn construct_example_prog() -> ast::aexp::Aexp
 {
-	use enclave_verifier::ast::aexp::constructor_helper;
-	use constructor_helper::ConstType;
+	use enclave_verifier::ast::*;
+	use aexp::constructor_helper::*;
 
-	10i32.to_aexp() + 20i32.to_aexp() - 5.10f32.to_aexp() * 2i32.to_aexp() / 1i32.to_aexp() % 2i32.to_aexp()
+	let fun_exp_list_1 = vec![exp::Exp::A {e : (10i32.to_aexp() + 20i32.to_aexp())}];
+	let fun_call_1 = func_general::FnCall::new("foo".to_string(), fun_exp_list_1);
+
+	let fun_exp_list_2 =
+		vec![
+			exp::Exp::A {e : (5i32.to_aexp() - 2i32.to_aexp())},
+			exp::Exp::A {e : (2.5f32.to_aexp() * 2i32.to_aexp())},];
+	let fun_call_2 = func_general::FnCall::new("bar".to_string(), fun_exp_list_2);
+
+	aexp::Aexp::FnCall{fc : fun_call_1} + aexp::Aexp::FnCall{fc : fun_call_2} / 1i32.to_aexp() % 2i32.to_aexp() + "x".to_aexp()
 }
 
 fn main()
 {
 	let exp = construct_example_prog();
-	let string = ast::aexp::to_string(&exp);
 
-	println!("{}", string);
+	println!("{}", exp);
 }

@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub enum Aexp
 {
 	IntConst {v :  i32},
@@ -7,11 +9,15 @@ pub enum Aexp
 	Mul {l : Box<Aexp>, r : Box<Aexp>},
 	Div {l : Box<Aexp>, r : Box<Aexp>},
 	Mod {l : Box<Aexp>, r : Box<Aexp>},
+	Var {v : super::var_general::VarRef},
+	FnCall {fc : super::func_general::FnCall},
 }
 
 pub mod constructor_helper
 {
 	use std::ops;
+
+	//Helper for constant types:
 
 	pub trait ConstType
 	{
@@ -33,6 +39,26 @@ pub mod constructor_helper
 			super::Aexp::FloConst{v : self}
 		}
 	}
+
+	//Helper for Variables:
+
+	pub trait Var
+	{
+		fn to_aexp(&self) -> super::Aexp;
+	}
+
+	impl Var for str
+	{
+		fn to_aexp(&self) -> super::Aexp
+		{
+			super::Aexp::Var
+			{
+				v : super::super::var_general::VarRef::from_str(self)
+			}
+		}
+	}
+
+	//Helper for operations:
 
 	impl ops::Add<super::Aexp> for super::Aexp
 	{
@@ -85,71 +111,21 @@ pub mod constructor_helper
 	}
 }
 
-fn int_const_to_string(v : &i32) -> String
+impl fmt::Display for Aexp
 {
-	format!("{}", v).to_string()
-}
-
-fn float_const_to_string(v : &f32) -> String
-{
-	format!("{}", v).to_string()
-}
-
-fn add_exp_to_string(l : &Aexp, r : &Aexp) -> String
-{
-	let mut left_string = to_string(l);
-	left_string.push_str(" + ");
-	left_string.push_str(&to_string(r));
-
-	left_string
-}
-
-fn sub_exp_to_string(l : &Aexp, r : &Aexp) -> String
-{
-	let mut left_string = to_string(l);
-	left_string.push_str(" - ");
-	left_string.push_str(&to_string(r));
-
-	left_string
-}
-
-fn mul_exp_to_string(l : &Aexp, r : &Aexp) -> String
-{
-	let mut left_string = to_string(l);
-	left_string.push_str(" * ");
-	left_string.push_str(&to_string(r));
-
-	left_string
-}
-
-fn div_exp_to_string(l : &Aexp, r : &Aexp) -> String
-{
-	let mut left_string = to_string(l);
-	left_string.push_str(" / ");
-	left_string.push_str(&to_string(r));
-
-	left_string
-}
-
-fn mod_exp_to_string(l : &Aexp, r : &Aexp) -> String
-{
-	let mut left_string = to_string(l);
-	left_string.push_str(" % ");
-	left_string.push_str(&to_string(r));
-
-	left_string
-}
-
-pub fn to_string(aexp : &Aexp) -> String
-{
-	match aexp
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		Aexp::IntConst{v} => int_const_to_string(v),
-		Aexp::FloConst{v} => float_const_to_string(v),
-		Aexp::Add{l, r} => add_exp_to_string(l, r),
-		Aexp::Sub{l, r} => sub_exp_to_string(l, r),
-		Aexp::Mul{l, r} => mul_exp_to_string(l, r),
-		Aexp::Div{l, r} => div_exp_to_string(l, r),
-		Aexp::Mod{l, r} => mod_exp_to_string(l, r),
+		match self
+		{
+			Aexp::IntConst{v} => write!(f, "{}", v),
+			Aexp::FloConst{v} => write!(f, "{}", v),
+			Aexp::Add{l, r} => write!(f, "({} + {})", l, r),
+			Aexp::Sub{l, r} => write!(f, "({} - {})", l, r),
+			Aexp::Mul{l, r} => write!(f, "({} * {})", l, r),
+			Aexp::Div{l, r} => write!(f, "({} / {})", l, r),
+			Aexp::Mod{l, r} => write!(f, "({} % {})", l, r),
+			Aexp::Var{v} => write!(f, "{}", v),
+			Aexp::FnCall{fc} => write!(f, "{}", fc),
+		}
 	}
 }
