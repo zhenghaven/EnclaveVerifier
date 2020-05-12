@@ -15,3 +15,19 @@ impl fmt::Display for Exp
 		}
 	}
 }
+
+pub mod constructor_helper
+{
+	pub trait ExpType
+	{
+		fn to_exp(self) -> super::Exp;
+	}
+
+	impl ExpType for super::super::aexp::Aexp
+	{
+		fn to_exp(self) -> super::Exp
+		{
+			super::Exp::A {e : self}
+		}
+	}
+}
