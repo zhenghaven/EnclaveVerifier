@@ -1,6 +1,7 @@
 extern crate enclave_verifier;
 
 use enclave_verifier::ast;
+use enclave_verifier::type_checker;
 
 fn construct_example_prog() -> ast::aexp::Aexp
 {
@@ -22,6 +23,9 @@ fn construct_example_prog() -> ast::aexp::Aexp
 fn main()
 {
 	let exp = construct_example_prog();
-
 	println!("{}", exp);
+
+    println!("\nIteration test:\n");
+	let exp2 = construct_example_prog();
+    type_checker::type_checker::iterate_through_ast(exp2);
 }
