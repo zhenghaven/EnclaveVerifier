@@ -1,17 +1,7 @@
-use std::fmt;
-
 use crate::ast;
-
-pub fn tester() -> () {
-    println!("Tester");
-}
 
 pub fn iterate_through_ast(aexp: ast::aexp::Aexp) -> ()
 {
-	//use enclave_verifier::ast::*;
-	//use aexp::constructor_helper::*;
-
-    //println!("{}", aexp);
     match aexp {
         ast::aexp::Aexp::IntConst{v} => print!("int({})", v),
         ast::aexp::Aexp::FloConst{v} => print!("float({})", v),
@@ -50,11 +40,7 @@ pub fn iterate_through_ast(aexp: ast::aexp::Aexp) -> ()
             print!(")");
         },
         ast::aexp::Aexp::FnCall{fc} => {
-            //print!("func call:");
-            //print!("{}(", *fc.name);
             print!("{}", fc);
-            //*fc.fmt_exp_list();
-            //iterate_through_ast(fc)
         },
     }
 }

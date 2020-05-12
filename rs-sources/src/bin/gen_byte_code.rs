@@ -28,4 +28,5 @@ fn main()
     println!("\nIteration test:\n");
 	let exp2 = construct_example_prog();
     type_checker::type_checker::iterate_through_ast(exp2);
+    println!("");
 }
