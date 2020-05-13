@@ -1,10 +1,9 @@
 extern crate enclave_verifier;
 
-use enclave_verifier::ast;
+use enclave_verifier::ast::*;
 
-fn construct_example_prog() -> ast::aexp::Aexp
+fn construct_example_prog() -> exp::Exp
 {
-	use enclave_verifier::ast::*;
 	use aexp::constructor_helper::*;
 	use exp::constructor_helper::*;
 
@@ -17,11 +16,33 @@ fn construct_example_prog() -> ast::aexp::Aexp
 		];
 	let fun_call_2 = func_general::FnCall::new("bar".to_string(), fun_exp_list_2);
 
-	aexp::Aexp::FnCall{fc : fun_call_1} + aexp::Aexp::FnCall{fc : fun_call_2} / 1i32.to_aexp() % 2i32.to_aexp() + "x".to_aexp()
+	(aexp::Aexp::FnCall{fc : fun_call_1} + aexp::Aexp::FnCall{fc : fun_call_2} / 1i32.to_aexp() % 2i32.to_aexp() + "x".to_aexp()).to_exp()
 }
 
 fn main()
 {
-	let exp = construct_example_prog();
-	println!("{}", exp);
+	println!("");
+
+	let example_exp = construct_example_prog();
+	println!("Example Exp:\n{}\n", example_exp);
+
+	let byte_code = match example_exp.to_bytes()
+	{
+		Ok(val) => val,
+		Err(err_msg) => panic!(err_msg)
+	};
+
+	println!("Bytecode:\n{:?} \n\n", byte_code);
+
+	let (bytes_left, exp_from_byte) = match exp::Exp::from_bytes(&byte_code[..])
+	{
+		Ok(val) => val,
+		Err(err_msg) => panic!(err_msg)
+	};
+
+
+	println!("Byte left:\n{:?} \n\n", bytes_left);
+	println!("Exp from bytecode:\n{}\n", exp_from_byte);
+
+	println!("");
 }

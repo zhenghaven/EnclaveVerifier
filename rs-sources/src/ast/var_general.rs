@@ -33,6 +33,21 @@ impl VarRef
 	{
 		VarRef{name : name.to_string()}
 	}
+
+	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarRef), String>
+	{
+		let (bytes_left, parsed_val) = super::primit_serialize::string_from_bytes(bytes)?;
+
+		Result::Ok((bytes_left, VarRef::from_str(&parsed_val[..])))
+	}
+}
+
+impl super::Serializible for VarRef
+{
+	fn to_bytes(&self) -> Result<Vec<u8>, String>
+	{
+		Result::Ok(super::primit_serialize::string_to_bytes(&self.name))
+	}
 }
 
 impl fmt::Display for VarRef
