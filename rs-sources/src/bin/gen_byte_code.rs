@@ -120,7 +120,9 @@ fn main()
 	println!("Example function test result is_prime(x = 222): {}\n", is_prime(222i32));
 
 	let example_exp = construct_example_prog_1();
-	println!("Example Exp:\n{}\n", example_exp);
+	let mut example_exp_lines : Vec<IndentString> = vec![];
+	example_exp.to_indent_lines(&mut example_exp_lines);
+	println!("Example Exp:\n{}\n", indent_lines_to_string(&example_exp_lines, '\t'));
 
 	let byte_code = match example_exp.to_bytes()
 	{
@@ -130,7 +132,7 @@ fn main()
 
 	println!("Bytecode ({} bytes):\n{:?} \n\n", byte_code.len(), byte_code);
 
-	let (bytes_left, exp_from_byte) = match cmd::Cmd::from_bytes(&byte_code[..])
+	let (bytes_left, prog_from_byte) = match cmd::Cmd::from_bytes(&byte_code[..])
 	{
 		Ok(val) => val,
 		Err(err_msg) => panic!(err_msg)
@@ -138,7 +140,10 @@ fn main()
 
 
 	println!("Byte left ({} bytes):\n{:?} \n\n", bytes_left.len(), bytes_left);
-	println!("Exp from bytecode:\n{}\n", exp_from_byte);
+
+	let mut prog_from_byte_lines : Vec<IndentString> = vec![];
+	prog_from_byte.to_indent_lines(&mut prog_from_byte_lines);
+	println!("Exp from bytecode:\n{}\n", indent_lines_to_string(&prog_from_byte_lines, '\t'));
 
 	println!("");
 }

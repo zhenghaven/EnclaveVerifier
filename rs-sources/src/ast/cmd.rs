@@ -251,6 +251,55 @@ impl Cmd
 			Cmd::Return{e:_}                        => ByteId::Return,
 		}
 	}
+
+	pub fn to_indent_lines(&self, out_lines : &mut Vec<super::IndentString>)
+	{
+		match self
+		{
+			Cmd::Skip                         => {},
+			Cmd::VarDecl{d}                   => out_lines.push(super::IndentString::Stay(format!("let {};", d))),
+			Cmd::Assign{var, e}               => out_lines.push(super::IndentString::Stay(format!("{} = {};", var, e))),
+			Cmd::IfElse{cond, tr_cmd, fa_cmd} => 
+			{
+				out_lines.push(super::IndentString::Stay(format!("if {}", cond)));
+				out_lines.push(super::IndentString::Enter);
+				tr_cmd.to_indent_lines(out_lines);
+				out_lines.push(super::IndentString::Exit);
+
+				match *(*fa_cmd)
+				{
+					Cmd::Skip => {},
+					_         =>
+					{
+						out_lines.push(super::IndentString::Stay(format!("else")));
+						out_lines.push(super::IndentString::Enter);
+						fa_cmd.to_indent_lines(out_lines);
+						out_lines.push(super::IndentString::Exit);
+					},
+				}
+			},
+			Cmd::WhileLoop{cond, lp_cmd}      =>
+			{
+				out_lines.push(super::IndentString::Stay(format!("while {}", cond)));
+				out_lines.push(super::IndentString::Enter);
+				lp_cmd.to_indent_lines(out_lines);
+				out_lines.push(super::IndentString::Exit);
+			},
+			Cmd::Seq{fst_cmd, snd_cmd}        =>
+			{
+				fst_cmd.to_indent_lines(out_lines);
+				snd_cmd.to_indent_lines(out_lines);
+			},
+			Cmd::FnDecl{prototype, fn_cmd}    =>
+			{
+				out_lines.push(super::IndentString::Stay(format!("{}", prototype)));
+				out_lines.push(super::IndentString::Enter);
+				fn_cmd.to_indent_lines(out_lines);
+				out_lines.push(super::IndentString::Exit);
+			},
+			Cmd::Return{e}                    => out_lines.push(super::IndentString::Stay(format!("return {};", e))),
+		}
+	}
 }
 
 impl fmt::Display for Cmd

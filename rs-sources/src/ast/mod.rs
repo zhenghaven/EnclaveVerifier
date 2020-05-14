@@ -33,6 +33,42 @@ pub trait Deserializible<T>
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], T), String>;
 }
 
+pub enum IndentString
+{
+	Enter,
+	Stay(String),
+	Exit,
+}
+
+pub fn indent_lines_to_string(in_lines : &Vec<IndentString>, indent_ch : char) -> String
+{
+	let mut res : String = String::new();
+	let mut indent : String = String::new();
+
+	for line in in_lines.iter()
+	{
+		match line
+		{
+			IndentString::Enter =>
+			{
+				res = res + &indent + "{\n";
+				indent.push(indent_ch);
+			},
+			IndentString::Stay(s) =>
+			{
+				res = res + &indent + s + "\n";
+			},
+			IndentString::Exit =>
+			{
+				indent.pop();
+				res = res + &indent + "}\n";
+			},
+		}
+	}
+
+	res
+}
+
 pub mod primit_serialize;
 
 pub mod data_type;
