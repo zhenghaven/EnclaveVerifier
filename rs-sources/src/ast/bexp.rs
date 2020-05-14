@@ -17,6 +17,305 @@ pub enum Bexp
 	/* foo() */  FnCall    {fc : super::func_general::FnCall},
 }
 
+enum ByteId
+{
+	BoolConst,
+	Beq,
+	Bneq,
+	And,
+	Or,
+	Aeq,
+	Aneq,
+	Lt,
+	Lte,
+	Gt,
+	Gte,
+	Var,
+	FnCall,
+}
+
+impl ByteId
+{
+	fn to_byte(&self) -> u8
+	{
+		match self
+		{
+			ByteId::BoolConst => 0u8,
+			ByteId::Beq       => 1u8,
+			ByteId::Bneq      => 2u8,
+			ByteId::And       => 3u8,
+			ByteId::Or        => 4u8,
+			ByteId::Aeq       => 5u8,
+			ByteId::Aneq      => 6u8,
+			ByteId::Lt        => 7u8,
+			ByteId::Lte       => 8u8,
+			ByteId::Gt        => 9u8,
+			ByteId::Gte       => 10u8,
+			ByteId::Var       => 11u8,
+			ByteId::FnCall    => 12u8,
+		}
+	}
+
+	fn from_byte(b : &u8) -> Result<ByteId, String>
+	{
+		match b
+		{
+			0u8 => Result::Ok(ByteId::BoolConst),
+			1u8 => Result::Ok(ByteId::Beq),
+			2u8 => Result::Ok(ByteId::Bneq),
+			3u8 => Result::Ok(ByteId::And),
+			4u8 => Result::Ok(ByteId::Or),
+			5u8 => Result::Ok(ByteId::Aeq),
+			6u8 => Result::Ok(ByteId::Aneq),
+			7u8 => Result::Ok(ByteId::Lt),
+			8u8 => Result::Ok(ByteId::Lte),
+			9u8 => Result::Ok(ByteId::Gt),
+			10u8 => Result::Ok(ByteId::Gte),
+			11u8 => Result::Ok(ByteId::Var),
+			12u8 => Result::Ok(ByteId::FnCall),
+			_   => Result::Err("Unrecognized type ID from byte for Aexp.".to_string())
+		}
+	}
+}
+
+impl super::Serializible for Bexp
+{
+	fn to_bytes(&self) -> Result<Vec<u8>, String>
+	{
+		let mut res : Vec<u8> = vec![self.to_byte_id().to_byte()];
+
+		match self
+		{
+			Bexp::BoolConst{v} =>
+			{
+				res.append(&mut super::primit_serialize::bool_to_bytes(v));
+				Result::Ok(res)
+			},
+			Bexp::Beq {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Bneq{l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::And {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Or  {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Aeq {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Aneq{l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Lt  {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Lte {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Gt  {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Gte {l, r} =>
+			{
+				res.append(&mut (l.to_bytes()?));
+				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Var {v}    =>
+			{
+				res.append(&mut (v.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::FnCall{fc} =>
+			{
+				res.append(&mut (fc.to_bytes()?));
+				Result::Ok(res)
+			},
+		}
+	}
+}
+
+impl Bexp
+{
+	fn to_byte_id(&self) -> ByteId
+	{
+		match self
+		{
+			Bexp::BoolConst{v:_} => ByteId::BoolConst,
+			Bexp::Beq {l:_, r:_} => ByteId::Beq,
+			Bexp::Bneq{l:_, r:_} => ByteId::Bneq,
+			Bexp::And {l:_, r:_} => ByteId::And,
+			Bexp::Or  {l:_, r:_} => ByteId::Or,
+			Bexp::Aeq {l:_, r:_} => ByteId::Aeq,
+			Bexp::Aneq{l:_, r:_} => ByteId::Aneq,
+			Bexp::Lt  {l:_, r:_} => ByteId::Lt,
+			Bexp::Lte {l:_, r:_} => ByteId::Lte,
+			Bexp::Gt  {l:_, r:_} => ByteId::Gt,
+			Bexp::Gte {l:_, r:_} => ByteId::Gte,
+			Bexp::Var {v:_}      => ByteId::Var,
+			Bexp::FnCall{fc:_}   => ByteId::FnCall,
+		}
+	}
+
+	
+	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Bexp), String>
+	{
+		use constructor_helper::*;
+		if bytes.len() > 0
+		{
+			let type_id = ByteId::from_byte(&bytes[0])?;
+			match type_id
+			{
+				ByteId::BoolConst =>
+				{
+					let (bytes_left, parsed_val) = super::primit_serialize::bool_from_bytes(&bytes[1..])?;
+
+					Result::Ok((bytes_left, parsed_val.to_bexp()))
+				},
+				ByteId::Beq =>
+				{
+					let (bytes_left_l, parsed_val_l) = Bexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = Bexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.beq(parsed_val_r)))
+				},
+				ByteId::Bneq =>
+				{
+					let (bytes_left_l, parsed_val_l) = Bexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = Bexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.bneq(parsed_val_r)))
+				},
+				ByteId::And =>
+				{
+					let (bytes_left_l, parsed_val_l) = Bexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = Bexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.and(parsed_val_r)))
+				},
+				ByteId::Or =>
+				{
+					let (bytes_left_l, parsed_val_l) = Bexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = Bexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.or(parsed_val_r)))
+				},
+				ByteId::Aeq =>
+				{
+					let (bytes_left_l, parsed_val_l) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = super::aexp::Aexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.aeq(parsed_val_r)))
+				},
+				ByteId::Aneq =>
+				{
+					let (bytes_left_l, parsed_val_l) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = super::aexp::Aexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.aneq(parsed_val_r)))
+				},
+				ByteId::Lt =>
+				{
+					let (bytes_left_l, parsed_val_l) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = super::aexp::Aexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.lt(parsed_val_r)))
+				},
+				ByteId::Lte =>
+				{
+					let (bytes_left_l, parsed_val_l) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = super::aexp::Aexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.lte(parsed_val_r)))
+				},
+				ByteId::Gt =>
+				{
+					let (bytes_left_l, parsed_val_l) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = super::aexp::Aexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.gt(parsed_val_r)))
+				},
+				ByteId::Gte =>
+				{
+					let (bytes_left_l, parsed_val_l) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
+					let (bytes_left_r, parsed_val_r) = super::aexp::Aexp::from_bytes(bytes_left_l)?;
+
+					Result::Ok((bytes_left_r, parsed_val_l.gte(parsed_val_r)))
+				},
+				ByteId::Var =>
+				{
+					let (bytes_left, parsed_val) = super::var_general::VarRef::from_bytes(&bytes[1..])?;
+
+					Result::Ok((bytes_left, Bexp::Var {v : parsed_val}))
+				},
+				ByteId::FnCall =>
+				{
+					let (bytes_left, parsed_val) = super::func_general::FnCall::from_bytes(&bytes[1..])?;
+
+					Result::Ok((bytes_left, Bexp::FnCall {fc : parsed_val}))
+				},
+			}
+		}
+		else
+		{
+			Result::Err("Failed to parse Bexp. Bytes are shorter than expected.". to_string())
+		}
+	}
+}
+
+impl fmt::Display for Bexp
+{
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+	{
+		match self
+		{
+			Bexp::BoolConst{v} => write!(f, "{}", v),
+			Bexp::Beq  {l, r}  => write!(f, "({} == {})", l, r),
+			Bexp::Bneq {l, r}  => write!(f, "({} != {})", l, r),
+			Bexp::And  {l, r}  => write!(f, "({} && {})", l, r),
+			Bexp::Or   {l, r}  => write!(f, "({} || {})", l, r),
+			Bexp::Aeq  {l, r}  => write!(f, "({} == {})", l, r),
+			Bexp::Aneq {l, r}  => write!(f, "({} != {})", l, r),
+			Bexp::Lt   {l, r}  => write!(f, "({} < {})",  l, r),
+			Bexp::Lte  {l, r}  => write!(f, "({} <= {})", l, r),
+			Bexp::Gt   {l, r}  => write!(f, "({} > {})",  l, r),
+			Bexp::Gte  {l, r}  => write!(f, "({} >= {})", l, r),
+			Bexp::Var  {v}     => write!(f, "{}", v),
+			Bexp::FnCall{fc}   => write!(f, "{}", fc),
+		}
+	}
+}
+
 pub mod constructor_helper
 {
 	//Helper for constant types:
@@ -105,29 +404,6 @@ pub mod constructor_helper
 		pub fn gte(self, r_in : super::super::aexp::Aexp) -> super::Bexp
 		{
 			super::Bexp::Gte{l : Box::new(self), r : Box::new(r_in)}
-		}
-	}
-}
-
-impl fmt::Display for Bexp
-{
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-	{
-		match self
-		{
-			Bexp::BoolConst{v} => write!(f, "{}", v),
-			Bexp::Beq  {l, r}  => write!(f, "({} == {})", l, r),
-			Bexp::Bneq {l, r}  => write!(f, "({} != {})", l, r),
-			Bexp::And  {l, r}  => write!(f, "({} && {})", l, r),
-			Bexp::Or   {l, r}  => write!(f, "({} || {})", l, r),
-			Bexp::Aeq  {l, r}  => write!(f, "({} == {})", l, r),
-			Bexp::Aneq {l, r}  => write!(f, "({} != {})", l, r),
-			Bexp::Lt   {l, r}  => write!(f, "({} < {})",  l, r),
-			Bexp::Lte  {l, r}  => write!(f, "({} <= {})", l, r),
-			Bexp::Gt   {l, r}  => write!(f, "({} > {})",  l, r),
-			Bexp::Gte  {l, r}  => write!(f, "({} >= {})", l, r),
-			Bexp::Var  {v}     => write!(f, "{}", v),
-			Bexp::FnCall{fc}   => write!(f, "{}", fc),
 		}
 	}
 }

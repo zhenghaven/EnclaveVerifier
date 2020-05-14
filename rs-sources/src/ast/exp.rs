@@ -3,11 +3,13 @@ use std::fmt;
 pub enum Exp
 {
 	A {e : super::aexp::Aexp},
+	B {e : super::bexp::Bexp},
 }
 
 enum ByteId
 {
 	A,
+	B,
 }
 
 impl ByteId
@@ -17,6 +19,7 @@ impl ByteId
 		match self
 		{
 			ByteId::A => 0u8,
+			ByteId::B => 1u8,
 		}
 	}
 
@@ -25,6 +28,7 @@ impl ByteId
 		match b
 		{
 			0u8 => Result::Ok(ByteId::A),
+			1u8 => Result::Ok(ByteId::B),
 			_   => Result::Err("Unrecognized type ID from byte for Exp.".to_string()),
 		}
 	}
@@ -37,11 +41,14 @@ impl Exp
 		match self
 		{
 			Exp::A {e:_} => ByteId::A,
+			Exp::B {e:_} => ByteId::B,
 		}
 	}
 
 	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Exp), String>
 	{
+		use constructor_helper::*;
+
 		let byte_id = ByteId::from_byte(&bytes[0])?;
 
 		if bytes.len() > 0
@@ -50,10 +57,14 @@ impl Exp
 			{
 				ByteId::A =>
 				{
-					use constructor_helper::ExpType;
 					let (left_bytes, aexp_res) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
 					Result::Ok((left_bytes, aexp_res.to_exp()))
-				}
+				},
+				ByteId::B =>
+				{
+					let (left_bytes, bexp_res) = super::bexp::Bexp::from_bytes(&bytes[1..])?;
+					Result::Ok((left_bytes, bexp_res.to_exp()))
+				},
 			}
 		}
 		else
@@ -76,7 +87,13 @@ impl super::Serializible for Exp
 				res.append(&mut e.to_bytes()?);
 
 				Result::Ok(res)
-			}
+			},
+			Exp::B {e} =>
+			{
+				res.append(&mut e.to_bytes()?);
+
+				Result::Ok(res)
+			},
 		}
 	}
 }
@@ -87,23 +104,32 @@ impl fmt::Display for Exp
 	{
 		match self
 		{
-			Exp::A {e} => write!(f, "{}", e)
+			Exp::A {e} => write!(f, "{}", e),
+			Exp::B {e} => write!(f, "{}", e),
 		}
 	}
 }
 
 pub mod constructor_helper
 {
-	pub trait ExpType
+	pub trait ToExp
 	{
 		fn to_exp(self) -> super::Exp;
 	}
 
-	impl ExpType for super::super::aexp::Aexp
+	impl ToExp for super::super::aexp::Aexp
 	{
 		fn to_exp(self) -> super::Exp
 		{
 			super::Exp::A {e : self}
+		}
+	}
+
+	impl ToExp for super::super::bexp::Bexp
+	{
+		fn to_exp(self) -> super::Exp
+		{
+			super::Exp::B {e : self}
 		}
 	}
 }

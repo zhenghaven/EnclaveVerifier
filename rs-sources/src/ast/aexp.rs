@@ -160,7 +160,6 @@ impl ByteId
 	}
 }
 
-
 impl super::Serializible for Aexp
 {
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
