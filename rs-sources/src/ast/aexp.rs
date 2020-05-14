@@ -251,8 +251,11 @@ impl Aexp
 			Aexp::FnCall{fc:_}  => ByteId::FnCall,
 		}
 	}
+}
 
-	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Aexp), String>
+impl super::Deserializible<Aexp> for Aexp
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Aexp), String>
 	{
 		use constructor_helper::*;
 		if bytes.len() > 0

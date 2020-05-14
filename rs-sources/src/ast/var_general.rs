@@ -13,6 +13,7 @@ impl VarDecl
 		VarDecl{var_type : var_type, name : name}
 	}
 }
+
 impl super::Deserializible<VarDecl> for VarDecl
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarDecl), String>
@@ -54,8 +55,11 @@ impl VarRef
 	{
 		VarRef{name : name.to_string()}
 	}
+}
 
-	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarRef), String>
+impl super::Deserializible<VarRef> for VarRef
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarRef), String>
 	{
 		let (bytes_left, parsed_val) = super::primit_serialize::string_from_bytes(bytes)?;
 

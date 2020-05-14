@@ -115,7 +115,30 @@ impl FnCall
 		FnCall {name : name, exp_list : exp_list}
 	}
 
-	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnCall), String>
+	pub fn fmt_exp_list(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+	{
+		let mut is_first = true;
+
+		for exp in self.exp_list.iter()
+		{
+			if is_first
+			{
+				is_first = false;
+				write!(f, "{}", exp)?;
+			}
+			else
+			{
+				write!(f, ", {}", exp)?;
+			}
+		}
+
+		write!(f, "")
+	}
+}
+
+impl super::Deserializible<FnCall> for FnCall
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnCall), String>
 	{
 		let (bytes_left_1, name) = super::primit_serialize::string_from_bytes(bytes)?;
 
@@ -136,26 +159,6 @@ impl FnCall
 		}
 
 		Result::Ok((bytes_left_list[list_len], FnCall {name : name, exp_list : exp_list}))
-	}
-
-	pub fn fmt_exp_list(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-	{
-		let mut is_first = true;
-
-		for exp in self.exp_list.iter()
-		{
-			if is_first
-			{
-				is_first = false;
-				write!(f, "{}", exp)?;
-			}
-			else
-			{
-				write!(f, ", {}", exp)?;
-			}
-		}
-
-		write!(f, "")
 	}
 }
 

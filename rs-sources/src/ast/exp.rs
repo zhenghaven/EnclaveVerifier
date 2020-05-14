@@ -44,8 +44,11 @@ impl Exp
 			Exp::B {e:_} => ByteId::B,
 		}
 	}
+}
 
-	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Exp), String>
+impl super::Deserializible<Exp> for Exp
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Exp), String>
 	{
 		use constructor_helper::*;
 
