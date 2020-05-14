@@ -112,6 +112,36 @@ fn construct_example_prog_1() -> cmd::Cmd
 	prog
 }
 
+fn write_byte_code_to_file(code : &cmd::Cmd, prog_name : &str)
+{
+	use std::fs::File;
+	use std::path::Path;
+	use std::io::prelude::*;
+
+	let file_path_string = format!("{}.{}", prog_name, "impc");
+	let file_path = Path::new(&file_path_string);
+
+	let mut file = match File::create(&file_path)
+	{
+        Err(why) => panic!("couldn't create {}: {}", file_path.display(), why),
+        Ok(file) => file,
+	};
+	
+	let byte_code = match code.to_bytes()
+	{
+		Err(why) => panic!("Couldn't generate byte code for {}. {}", prog_name, why),
+		Ok(byte_code) => byte_code
+	};
+
+	println!("Bytecode generated for {} ({} bytes total).", prog_name, byte_code.len());
+
+	match file.write_all(&byte_code)
+	{
+        Err(why) => panic!("couldn't write to {}: {}", file_path.display(), why),
+        Ok(_) => println!("successfully wrote to {}", file_path.display()),
+    }
+}
+
 fn main()
 {
 	println!("");
@@ -119,31 +149,13 @@ fn main()
 	println!("Example function test result is_prime(x = 211): {}\n", is_prime(211i32));
 	println!("Example function test result is_prime(x = 222): {}\n", is_prime(222i32));
 
-	let example_exp = construct_example_prog_1();
-	let mut example_exp_lines : Vec<IndentString> = vec![];
-	example_exp.to_indent_lines(&mut example_exp_lines);
-	println!("Example Exp:\n{}\n", indent_lines_to_string(&example_exp_lines, '\t'));
+	let example_prog_1_name = "is_prime";
+	let example_prog_1 = construct_example_prog_1();
+	let mut example_prog_1_lines : Vec<IndentString> = vec![];
+	example_prog_1.to_indent_lines(&mut example_prog_1_lines);
+	println!("Example program {}:\n{}\n", example_prog_1_name, indent_lines_to_string(&example_prog_1_lines, '\t'));
 
-	let byte_code = match example_exp.to_bytes()
-	{
-		Ok(val) => val,
-		Err(err_msg) => panic!(err_msg)
-	};
-
-	println!("Bytecode ({} bytes):\n{:?} \n\n", byte_code.len(), byte_code);
-
-	let (bytes_left, prog_from_byte) = match cmd::Cmd::from_bytes(&byte_code[..])
-	{
-		Ok(val) => val,
-		Err(err_msg) => panic!(err_msg)
-	};
-
-
-	println!("Byte left ({} bytes):\n{:?} \n\n", bytes_left.len(), bytes_left);
-
-	let mut prog_from_byte_lines : Vec<IndentString> = vec![];
-	prog_from_byte.to_indent_lines(&mut prog_from_byte_lines);
-	println!("Exp from bytecode:\n{}\n", indent_lines_to_string(&prog_from_byte_lines, '\t'));
+	write_byte_code_to_file(&example_prog_1, &example_prog_1_name);
 
 	println!("");
 }
