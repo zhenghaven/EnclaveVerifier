@@ -29,7 +29,7 @@ impl ByteId
 		{
 			0u8 => Result::Ok(ByteId::A),
 			1u8 => Result::Ok(ByteId::B),
-			_   => Result::Err("Unrecognized type ID from byte for Exp.".to_string()),
+			_   => Result::Err(format!("Unrecognized type ID ({}) from byte for Exp.", b)),
 		}
 	}
 }

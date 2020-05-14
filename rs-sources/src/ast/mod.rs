@@ -28,6 +28,11 @@ pub trait Serializible
 	fn to_bytes(&self) -> Result<Vec<u8>, String>;
 }
 
+pub trait Deserializible<T>
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], T), String>;
+}
+
 pub mod primit_serialize;
 
 pub mod data_type;
@@ -36,3 +41,4 @@ pub mod exp;
 pub mod func_general;
 pub mod aexp;
 pub mod bexp;
+pub mod cmd;

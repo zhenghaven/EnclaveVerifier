@@ -186,7 +186,6 @@ impl Bexp
 			Bexp::FnCall{fc:_}   => ByteId::FnCall,
 		}
 	}
-
 	
 	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Bexp), String>
 	{
