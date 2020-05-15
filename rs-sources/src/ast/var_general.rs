@@ -27,6 +27,15 @@ impl super::Deserializible<VarDecl> for VarDecl
 
 impl super::Serializible for VarDecl
 {
+	/// Serialize the AST (of VarDecl type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # VarDecl layout
+	/// ```
+	///            | Datatype - 1 Byte | string - 10+ bytes |
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		let mut res = self.var_type.to_bytes()?;
@@ -69,6 +78,15 @@ impl super::Deserializible<VarRef> for VarRef
 
 impl super::Serializible for VarRef
 {
+	/// Serialize the AST (of VarRef type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # VarRef layout
+	/// ```
+	///            | string - 10+ bytes |
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		Result::Ok(super::primit_serialize::string_to_bytes(&self.name))

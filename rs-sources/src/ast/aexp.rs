@@ -162,6 +162,23 @@ impl ByteId
 
 impl super::Serializible for Aexp
 {
+	/// Serialize the AST (of Aexp type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # Aexp layout
+	/// ```
+	/// IntConst:  | type=0 - 1 Byte | i32 - 5 bytes |
+	/// FloConst:  | type=1 - 1 Byte | f32 - 5 bytes |
+	/// Add:       | type=2 - 1 Byte | Aexp::bytes   | Aexp::bytes   |
+	/// Sub:       | type=3 - 1 Byte | Aexp::bytes   | Aexp::bytes   |
+	/// Mul:       | type=4 - 1 Byte | Aexp::bytes   | Aexp::bytes   |
+	/// Div:       | type=5 - 1 Byte | Aexp::bytes   | Aexp::bytes   |
+	/// Mod:       | type=6 - 1 Byte | Aexp::bytes   | Aexp::bytes   |
+	/// Var:       | type=7 - 1 Byte | VarRef::bytes |
+	/// FnCall:    | type=8 - 1 Byte | FnCall::bytes |
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		let mut res : Vec<u8> = vec![self.to_byte_id().to_byte()];

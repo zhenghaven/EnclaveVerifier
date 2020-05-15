@@ -70,6 +70,15 @@ impl super::Deserializible<FnProtoType> for FnProtoType
 
 impl super::Serializible for FnProtoType
 {
+	/// Serialize the AST (of FnProtoType type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # FnProtoType layout
+	/// ```
+	///            | Datatype - 1 byte | string - 10+ bytes | uint64 - 9 Bytes | VarDecl::bytes | ...
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		// 1. ret type
@@ -164,6 +173,15 @@ impl super::Deserializible<FnCall> for FnCall
 
 impl super::Serializible for FnCall
 {
+	/// Serialize the AST (of FnCall type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # FnCall layout
+	/// ```
+	///            | string - 10+ bytes | uint64 - 9 Bytes | Exp::bytes | ...
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		let mut res = super::primit_serialize::string_to_bytes(&self.name);

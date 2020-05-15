@@ -46,6 +46,15 @@ impl super::Deserializible<DataType> for DataType
 
 impl super::Serializible for DataType
 {
+	/// Serialize the AST (of VarDecl type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # VarDecl layout
+	/// ```
+	///            | Datatype - 1 Byte |
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		Ok(vec![self.to_byte()])

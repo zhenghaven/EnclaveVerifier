@@ -3,11 +3,15 @@ use std::fmt;
 pub enum Bexp
 {
 	/* T / F */  BoolConst {v :  bool},
+	/// Equivalent for boolean expressions
 	/* == */     Beq       {l : Box<Bexp>, r : Box<Bexp>},
+	/// Not-equivalent for boolean expressions
 	/* != */     Bneq      {l : Box<Bexp>, r : Box<Bexp>},
 	/* && */     And       {l : Box<Bexp>, r : Box<Bexp>},
 	/* || */     Or        {l : Box<Bexp>, r : Box<Bexp>},
+	/// Equivalent for arithmetic expressions
 	/* == */     Aeq       {l : Box<super::aexp::Aexp>, r : Box<super::aexp::Aexp>},
+	/// Not-equivalent for arithmetic expressions
 	/* != */     Aneq      {l : Box<super::aexp::Aexp>, r : Box<super::aexp::Aexp>},
 	/* <  */     Lt        {l : Box<super::aexp::Aexp>, r : Box<super::aexp::Aexp>},
 	/* <= */     Lte       {l : Box<super::aexp::Aexp>, r : Box<super::aexp::Aexp>},
@@ -80,6 +84,27 @@ impl ByteId
 
 impl super::Serializible for Bexp
 {
+	/// Serialize the AST (of Bexp type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # Bexp layout
+	/// ```
+	/// BoolConst:  | type=0 - 1 Byte  | bool - 2 bytes |
+	/// Beq:        | type=1 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// Bneq:       | type=2 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// And:        | type=3 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// Or:         | type=4 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// Aeq:        | type=5 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Aneq:       | type=6 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Lt:         | type=7 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Lte:        | type=8 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Gt:         | type=9 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Gte:        | type=10 - 1 Byte | Aexp::bytes    | Aexp::bytes   |
+	/// Var:        | type=11 - 1 Byte | VarRef::bytes  |
+	/// FnCall:     | type=12 - 1 Byte | FnCall::bytes  |
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		let mut res : Vec<u8> = vec![self.to_byte_id().to_byte()];

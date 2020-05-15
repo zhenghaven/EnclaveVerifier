@@ -174,6 +174,22 @@ impl super::Deserializible<Cmd> for Cmd
 
 impl super::Serializible for Cmd
 {
+	/// Serialize the AST (of Cmd type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # Cmd layout
+	/// ```
+	/// Skip:       | type=0 - 1 Byte |
+	/// VarDecl:    | type=1 - 1 Byte | VarDecl::bytes     |
+	/// Assign:     | type=2 - 1 Byte | VarRef::bytes      |  Exp::bytes  |
+	/// IfElse:     | type=3 - 1 Byte | Bexp::bytes        |  Cmd::bytes  |  Cmd::bytes  |
+	/// WhileLoop:  | type=4 - 1 Byte | Bexp::bytes        |  Cmd::bytes  |
+	/// Seq:        | type=5 - 1 Byte | Cmd::bytes         |  Cmd::bytes  |
+	/// FnDecl:     | type=6 - 1 Byte | FnProtoType::bytes |  Cmd::bytes  |
+	/// Return:     | type=7 - 1 Byte | Exp::bytes         |
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		let mut res : Vec<u8> = vec![self.to_byte_id().to_byte()];
@@ -211,7 +227,7 @@ impl super::Serializible for Cmd
 
 				Result::Ok(res)
 			},
-			Cmd::Seq{fst_cmd, snd_cmd} => 
+			Cmd::Seq{fst_cmd, snd_cmd} =>
 			{
 				res.append(&mut (fst_cmd.to_bytes()?));
 				res.append(&mut (snd_cmd.to_bytes()?));
@@ -259,7 +275,7 @@ impl Cmd
 			Cmd::Skip                         => {},
 			Cmd::VarDecl{d}                   => out_lines.push(super::IndentString::Stay(format!("let {};", d))),
 			Cmd::Assign{var, e}               => out_lines.push(super::IndentString::Stay(format!("{} = {};", var, e))),
-			Cmd::IfElse{cond, tr_cmd, fa_cmd} => 
+			Cmd::IfElse{cond, tr_cmd, fa_cmd} =>
 			{
 				out_lines.push(super::IndentString::Stay(format!("if {}", cond)));
 				out_lines.push(super::IndentString::Enter);
@@ -311,7 +327,7 @@ impl fmt::Display for Cmd
 			Cmd::Skip                         => write!(f, ""),
 			Cmd::VarDecl{d}                   => write!(f, "let {};", d),
 			Cmd::Assign{var, e}               => write!(f, "{} = {};", var, e),
-			Cmd::IfElse{cond, tr_cmd, fa_cmd} => 
+			Cmd::IfElse{cond, tr_cmd, fa_cmd} =>
 			{
 				match *(*fa_cmd)
 				{

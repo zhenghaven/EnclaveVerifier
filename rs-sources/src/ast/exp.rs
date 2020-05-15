@@ -1,8 +1,11 @@
 use std::fmt;
 
+/// Any type of expression
 pub enum Exp
 {
+	/// Aexp - an arithmetic expression
 	A {e : super::aexp::Aexp},
+	/// Bexp - a boolean expression
 	B {e : super::bexp::Bexp},
 }
 
@@ -79,6 +82,16 @@ impl super::Deserializible<Exp> for Exp
 
 impl super::Serializible for Exp
 {
+	/// Serialize the AST (of Exp type) into serials of bytes, and return the vector of bytes.
+	///
+	/// Please refer to the documentation on the trait for detail.
+	///
+	/// # Exp layout
+	/// ```
+	/// AExp:   | type=0 - 1 Byte | Aexp::bytes   |
+	/// BExp:   | type=1 - 1 Byte | Bexp::bytes   |
+	/// ```
+	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		let mut res :Vec<u8> = vec![self.get_byte_id().to_byte()];
