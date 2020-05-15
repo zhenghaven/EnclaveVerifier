@@ -14,17 +14,6 @@ impl VarDecl
 	}
 }
 
-impl super::Deserializible<VarDecl> for VarDecl
-{
-	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarDecl), String>
-	{
-		let (bytes_left_1, parsed_var_type) = super::data_type::DataType::from_bytes(bytes)?;
-		let (bytes_left_2, parsed_name) = super::primit_serialize::string_from_bytes(bytes_left_1)?;
-
-		Result::Ok((bytes_left_2, VarDecl {var_type : parsed_var_type, name : parsed_name}))
-	}
-}
-
 impl super::Serializible for VarDecl
 {
 	/// Serialize the AST (of VarDecl type) into serials of bytes, and return the vector of bytes.
@@ -42,6 +31,17 @@ impl super::Serializible for VarDecl
 		res.append(&mut super::primit_serialize::string_to_bytes(&self.name));
 
 		Result::Ok(res)
+	}
+}
+
+impl super::Deserializible<VarDecl> for VarDecl
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarDecl), String>
+	{
+		let (bytes_left_1, parsed_var_type) = super::data_type::DataType::from_bytes(bytes)?;
+		let (bytes_left_2, parsed_name) = super::primit_serialize::string_from_bytes(bytes_left_1)?;
+
+		Result::Ok((bytes_left_2, VarDecl {var_type : parsed_var_type, name : parsed_name}))
 	}
 }
 
@@ -66,16 +66,6 @@ impl VarRef
 	}
 }
 
-impl super::Deserializible<VarRef> for VarRef
-{
-	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarRef), String>
-	{
-		let (bytes_left, parsed_val) = super::primit_serialize::string_from_bytes(bytes)?;
-
-		Result::Ok((bytes_left, VarRef::from_str(&parsed_val[..])))
-	}
-}
-
 impl super::Serializible for VarRef
 {
 	/// Serialize the AST (of VarRef type) into serials of bytes, and return the vector of bytes.
@@ -90,6 +80,16 @@ impl super::Serializible for VarRef
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		Result::Ok(super::primit_serialize::string_to_bytes(&self.name))
+	}
+}
+
+impl super::Deserializible<VarRef> for VarRef
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarRef), String>
+	{
+		let (bytes_left, parsed_val) = super::primit_serialize::string_from_bytes(bytes)?;
+
+		Result::Ok((bytes_left, VarRef::from_str(&parsed_val[..])))
 	}
 }
 

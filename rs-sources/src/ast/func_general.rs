@@ -35,39 +35,6 @@ impl FnProtoType
 	}
 }
 
-impl super::Deserializible<FnProtoType> for FnProtoType
-{
-	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnProtoType), String>
-	{
-		// 1. ret type
-		let (bytes_left_1, parsed_ret_type) = super::data_type::DataType::from_bytes(bytes)?;
-
-		// 2. func name
-		let (bytes_left_2, parsed_name) = super::primit_serialize::string_from_bytes(bytes_left_1)?;
-
-		// 3. var list len
-		let (bytes_left_3, var_decl_list_len_u64) = super::primit_serialize::uint64_from_bytes(bytes_left_2)?;
-		let var_decl_list_len = var_decl_list_len_u64 as usize;
-
-		// 4. var list
-		let mut parsed_var_decl_list : Vec<super::var_general::VarDecl> = vec![];
-		let mut bytes_left_list : Vec<&[u8]> = vec![bytes_left_3];
-		parsed_var_decl_list.reserve(var_decl_list_len);
-		bytes_left_list.reserve(var_decl_list_len + 1);
-
-		for i in 0..var_decl_list_len
-		{
-			let (bytes_left_i, var_decl_item) = super::var_general::VarDecl::from_bytes(bytes_left_list[i])?;
-			parsed_var_decl_list.push(var_decl_item);
-			bytes_left_list.push(bytes_left_i);
-		}
-
-		Result::Ok((bytes_left_list[var_decl_list_len],
-			FnProtoType{ret_type : parsed_ret_type, name : parsed_name, var_decl_list : parsed_var_decl_list}
-		))
-	}
-}
-
 impl super::Serializible for FnProtoType
 {
 	/// Serialize the AST (of FnProtoType type) into serials of bytes, and return the vector of bytes.
@@ -98,6 +65,39 @@ impl super::Serializible for FnProtoType
 		}
 
 		Result::Ok(res)
+	}
+}
+
+impl super::Deserializible<FnProtoType> for FnProtoType
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnProtoType), String>
+	{
+		// 1. ret type
+		let (bytes_left_1, parsed_ret_type) = super::data_type::DataType::from_bytes(bytes)?;
+
+		// 2. func name
+		let (bytes_left_2, parsed_name) = super::primit_serialize::string_from_bytes(bytes_left_1)?;
+
+		// 3. var list len
+		let (bytes_left_3, var_decl_list_len_u64) = super::primit_serialize::uint64_from_bytes(bytes_left_2)?;
+		let var_decl_list_len = var_decl_list_len_u64 as usize;
+
+		// 4. var list
+		let mut parsed_var_decl_list : Vec<super::var_general::VarDecl> = vec![];
+		let mut bytes_left_list : Vec<&[u8]> = vec![bytes_left_3];
+		parsed_var_decl_list.reserve(var_decl_list_len);
+		bytes_left_list.reserve(var_decl_list_len + 1);
+
+		for i in 0..var_decl_list_len
+		{
+			let (bytes_left_i, var_decl_item) = super::var_general::VarDecl::from_bytes(bytes_left_list[i])?;
+			parsed_var_decl_list.push(var_decl_item);
+			bytes_left_list.push(bytes_left_i);
+		}
+
+		Result::Ok((bytes_left_list[var_decl_list_len],
+			FnProtoType{ret_type : parsed_ret_type, name : parsed_name, var_decl_list : parsed_var_decl_list}
+		))
 	}
 }
 
@@ -145,32 +145,6 @@ impl FnCall
 	}
 }
 
-impl super::Deserializible<FnCall> for FnCall
-{
-	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnCall), String>
-	{
-		let (bytes_left_1, name) = super::primit_serialize::string_from_bytes(bytes)?;
-
-		let (bytes_left_2, list_len_u64) = super::primit_serialize::uint64_from_bytes(bytes_left_1)?;
-
-		let list_len = list_len_u64 as usize;
-
-		let mut exp_list : Vec<super::exp::Exp> = vec![];
-		let mut bytes_left_list : Vec<&[u8]> = vec![bytes_left_2];
-		exp_list.reserve(list_len);
-		exp_list.reserve(list_len + 1);
-
-		for i in 0..list_len
-		{
-			let (bytes_left_i, exp_item) = super::exp::Exp::from_bytes(bytes_left_list[i])?;
-			bytes_left_list.push(bytes_left_i);
-			exp_list.push(exp_item);
-		}
-
-		Result::Ok((bytes_left_list[list_len], FnCall {name : name, exp_list : exp_list}))
-	}
-}
-
 impl super::Serializible for FnCall
 {
 	/// Serialize the AST (of FnCall type) into serials of bytes, and return the vector of bytes.
@@ -196,6 +170,32 @@ impl super::Serializible for FnCall
 		}
 
 		Result::Ok(res)
+	}
+}
+
+impl super::Deserializible<FnCall> for FnCall
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnCall), String>
+	{
+		let (bytes_left_1, name) = super::primit_serialize::string_from_bytes(bytes)?;
+
+		let (bytes_left_2, list_len_u64) = super::primit_serialize::uint64_from_bytes(bytes_left_1)?;
+
+		let list_len = list_len_u64 as usize;
+
+		let mut exp_list : Vec<super::exp::Exp> = vec![];
+		let mut bytes_left_list : Vec<&[u8]> = vec![bytes_left_2];
+		exp_list.reserve(list_len);
+		exp_list.reserve(list_len + 1);
+
+		for i in 0..list_len
+		{
+			let (bytes_left_i, exp_item) = super::exp::Exp::from_bytes(bytes_left_list[i])?;
+			bytes_left_list.push(bytes_left_i);
+			exp_list.push(exp_item);
+		}
+
+		Result::Ok((bytes_left_list[list_len], FnCall {name : name, exp_list : exp_list}))
 	}
 }
 

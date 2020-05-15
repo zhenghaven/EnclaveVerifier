@@ -21,63 +21,25 @@ pub enum Bexp
 	/* foo() */  FnCall    {fc : super::func_general::FnCall},
 }
 
-enum ByteId
+impl Bexp
 {
-	BoolConst,
-	Beq,
-	Bneq,
-	And,
-	Or,
-	Aeq,
-	Aneq,
-	Lt,
-	Lte,
-	Gt,
-	Gte,
-	Var,
-	FnCall,
-}
-
-impl ByteId
-{
-	fn to_byte(&self) -> u8
+	fn to_byte_id(&self) -> ByteId
 	{
 		match self
 		{
-			ByteId::BoolConst => 0u8,
-			ByteId::Beq       => 1u8,
-			ByteId::Bneq      => 2u8,
-			ByteId::And       => 3u8,
-			ByteId::Or        => 4u8,
-			ByteId::Aeq       => 5u8,
-			ByteId::Aneq      => 6u8,
-			ByteId::Lt        => 7u8,
-			ByteId::Lte       => 8u8,
-			ByteId::Gt        => 9u8,
-			ByteId::Gte       => 10u8,
-			ByteId::Var       => 11u8,
-			ByteId::FnCall    => 12u8,
-		}
-	}
-
-	fn from_byte(b : &u8) -> Result<ByteId, String>
-	{
-		match b
-		{
-			0u8 => Result::Ok(ByteId::BoolConst),
-			1u8 => Result::Ok(ByteId::Beq),
-			2u8 => Result::Ok(ByteId::Bneq),
-			3u8 => Result::Ok(ByteId::And),
-			4u8 => Result::Ok(ByteId::Or),
-			5u8 => Result::Ok(ByteId::Aeq),
-			6u8 => Result::Ok(ByteId::Aneq),
-			7u8 => Result::Ok(ByteId::Lt),
-			8u8 => Result::Ok(ByteId::Lte),
-			9u8 => Result::Ok(ByteId::Gt),
-			10u8 => Result::Ok(ByteId::Gte),
-			11u8 => Result::Ok(ByteId::Var),
-			12u8 => Result::Ok(ByteId::FnCall),
-			_   => Result::Err("Unrecognized type ID from byte for Aexp.".to_string())
+			Bexp::BoolConst{v:_} => ByteId::BoolConst,
+			Bexp::Beq {l:_, r:_} => ByteId::Beq,
+			Bexp::Bneq{l:_, r:_} => ByteId::Bneq,
+			Bexp::And {l:_, r:_} => ByteId::And,
+			Bexp::Or  {l:_, r:_} => ByteId::Or,
+			Bexp::Aeq {l:_, r:_} => ByteId::Aeq,
+			Bexp::Aneq{l:_, r:_} => ByteId::Aneq,
+			Bexp::Lt  {l:_, r:_} => ByteId::Lt,
+			Bexp::Lte {l:_, r:_} => ByteId::Lte,
+			Bexp::Gt  {l:_, r:_} => ByteId::Gt,
+			Bexp::Gte {l:_, r:_} => ByteId::Gte,
+			Bexp::Var {v:_}      => ByteId::Var,
+			Bexp::FnCall{fc:_}   => ByteId::FnCall,
 		}
 	}
 }
@@ -186,29 +148,6 @@ impl super::Serializible for Bexp
 				res.append(&mut (fc.to_bytes()?));
 				Result::Ok(res)
 			},
-		}
-	}
-}
-
-impl Bexp
-{
-	fn to_byte_id(&self) -> ByteId
-	{
-		match self
-		{
-			Bexp::BoolConst{v:_} => ByteId::BoolConst,
-			Bexp::Beq {l:_, r:_} => ByteId::Beq,
-			Bexp::Bneq{l:_, r:_} => ByteId::Bneq,
-			Bexp::And {l:_, r:_} => ByteId::And,
-			Bexp::Or  {l:_, r:_} => ByteId::Or,
-			Bexp::Aeq {l:_, r:_} => ByteId::Aeq,
-			Bexp::Aneq{l:_, r:_} => ByteId::Aneq,
-			Bexp::Lt  {l:_, r:_} => ByteId::Lt,
-			Bexp::Lte {l:_, r:_} => ByteId::Lte,
-			Bexp::Gt  {l:_, r:_} => ByteId::Gt,
-			Bexp::Gte {l:_, r:_} => ByteId::Gte,
-			Bexp::Var {v:_}      => ByteId::Var,
-			Bexp::FnCall{fc:_}   => ByteId::FnCall,
 		}
 	}
 }
@@ -431,6 +370,67 @@ pub mod constructor_helper
 		pub fn gte(self, r_in : super::super::aexp::Aexp) -> super::Bexp
 		{
 			super::Bexp::Gte{l : Box::new(self), r : Box::new(r_in)}
+		}
+	}
+}
+
+enum ByteId
+{
+	BoolConst,
+	Beq,
+	Bneq,
+	And,
+	Or,
+	Aeq,
+	Aneq,
+	Lt,
+	Lte,
+	Gt,
+	Gte,
+	Var,
+	FnCall,
+}
+
+impl ByteId
+{
+	fn to_byte(&self) -> u8
+	{
+		match self
+		{
+			ByteId::BoolConst => 0u8,
+			ByteId::Beq       => 1u8,
+			ByteId::Bneq      => 2u8,
+			ByteId::And       => 3u8,
+			ByteId::Or        => 4u8,
+			ByteId::Aeq       => 5u8,
+			ByteId::Aneq      => 6u8,
+			ByteId::Lt        => 7u8,
+			ByteId::Lte       => 8u8,
+			ByteId::Gt        => 9u8,
+			ByteId::Gte       => 10u8,
+			ByteId::Var       => 11u8,
+			ByteId::FnCall    => 12u8,
+		}
+	}
+
+	fn from_byte(b : &u8) -> Result<ByteId, String>
+	{
+		match b
+		{
+			0u8 => Result::Ok(ByteId::BoolConst),
+			1u8 => Result::Ok(ByteId::Beq),
+			2u8 => Result::Ok(ByteId::Bneq),
+			3u8 => Result::Ok(ByteId::And),
+			4u8 => Result::Ok(ByteId::Or),
+			5u8 => Result::Ok(ByteId::Aeq),
+			6u8 => Result::Ok(ByteId::Aneq),
+			7u8 => Result::Ok(ByteId::Lt),
+			8u8 => Result::Ok(ByteId::Lte),
+			9u8 => Result::Ok(ByteId::Gt),
+			10u8 => Result::Ok(ByteId::Gte),
+			11u8 => Result::Ok(ByteId::Var),
+			12u8 => Result::Ok(ByteId::FnCall),
+			_   => Result::Err("Unrecognized type ID from byte for Aexp.".to_string())
 		}
 	}
 }

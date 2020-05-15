@@ -34,16 +34,6 @@ impl DataType
 	}
 }
 
-impl super::Deserializible<DataType> for DataType
-{
-	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], DataType), String>
-	{
-		let data_type = DataType::from_byte(&bytes[0])?;
-
-		Result::Ok((&bytes[1..], data_type))
-	}
-}
-
 impl super::Serializible for DataType
 {
 	/// Serialize the AST (of VarDecl type) into serials of bytes, and return the vector of bytes.
@@ -58,6 +48,16 @@ impl super::Serializible for DataType
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
 	{
 		Ok(vec![self.to_byte()])
+	}
+}
+
+impl super::Deserializible<DataType> for DataType
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], DataType), String>
+	{
+		let data_type = DataType::from_byte(&bytes[0])?;
+
+		Result::Ok((&bytes[1..], data_type))
 	}
 }
 
