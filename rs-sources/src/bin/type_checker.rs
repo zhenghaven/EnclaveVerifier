@@ -29,7 +29,7 @@ fn read_byte_code_from_file(prog_name : &str) -> Vec<u8>
         Err(why) => panic!("couldn't create {}: {}", file_path.display(), why),
         Ok(file) => file,
 	};
-	
+
 	let mut byte_code : Vec<u8> = vec![];
 
 	match file.read_to_end(&mut byte_code)
@@ -41,24 +41,6 @@ fn read_byte_code_from_file(prog_name : &str) -> Vec<u8>
 	println!("Bytecode file read {} bytes total for program {}.", byte_code.len(), prog_name);
 
 	byte_code
-}
-
-fn example_aexp() -> ast::aexp::Aexp
-{
-	use ast::aexp::constructor_helper::*;
-	use ast::exp::constructor_helper::*;
-	use ast::func_general;
-
-	let fun_exp_list_1 = vec![(10i32.to_aexp() + 20i32.to_aexp()).to_exp()];
-	let fun_call_1 = func_general::FnCall::new("foo".to_string(), fun_exp_list_1);
-
-	let fun_exp_list_2 = vec![
-			(5i32.to_aexp() - 2i32.to_aexp()).to_exp(),
-			(2.5f32.to_aexp() * 2i32.to_aexp()).to_exp(),
-		];
-	let fun_call_2 = func_general::FnCall::new("bar".to_string(), fun_exp_list_2);
-
-	ast::aexp::Aexp::FnCall{fc : fun_call_1} + ast::aexp::Aexp::FnCall{fc : fun_call_2} / 1i32.to_aexp() % 2i32.to_aexp() + "x".to_aexp()
 }
 
 fn main()
@@ -77,7 +59,10 @@ fn main()
 
 
 	println!("\nIteration test:\n");
-	let example_aexp = example_aexp();
-    type_checker::type_checker::iterate_through_ast(example_aexp);
-    println!("");
+    let mut vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
+    let res = type_checker::type_checker::iterate_through_ast(example_prog_1, &mut vec);
+    match res {
+      Result::Ok(_)    => println!("Successful type checking!"),
+      Result::Err(err) => println!("Failed type checking:\n{}", err),
+    }
 }

@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(PartialEq, Copy, Clone)]
 pub enum DataType
 {
 	Void,

@@ -35,6 +35,18 @@ fn is_prime(x : i32) -> bool
 	return is_prime;
 }
 
+fn construct_example_prog_bexps() -> cmd::Cmd
+{
+    use bexp::constructor_helper::*;
+    use exp::constructor_helper::*;
+    use cmd::constructor_helper::*;
+
+	let eq_var_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Bool, "x".to_string()));
+    let bexp_eq = assign(var_general::VarRef::from_str("x"), (false.to_bexp().beq(true.to_bexp())).to_exp());
+    let prog = seq(eq_var_dec, seq(bexp_eq, skip()));
+    prog
+}
+
 fn construct_example_prog_1() -> cmd::Cmd
 {
 	use aexp::constructor_helper::*;
@@ -150,6 +162,7 @@ fn main()
 	println!("Example function test result is_prime(x = 222): {}\n", is_prime(222i32));
 
 	let example_prog_1_name = "is_prime";
+    //let example_prog_1 = construct_example_prog_bexps();
 	let example_prog_1 = construct_example_prog_1();
 	let mut example_prog_1_lines : Vec<IndentString> = vec![];
 	example_prog_1.to_indent_lines(&mut example_prog_1_lines);
