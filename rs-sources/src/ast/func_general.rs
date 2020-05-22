@@ -2,9 +2,9 @@ use std::fmt;
 
 pub struct FnProtoType
 {
-	ret_type : super::data_type::DataType,
-	name : String,
-	var_decl_list : Vec<super::var_general::VarDecl>,
+	pub ret_type : super::data_type::DataType,
+	pub name : String,
+	pub var_decl_list : Vec<super::var_general::VarDecl>,
 }
 
 impl FnProtoType

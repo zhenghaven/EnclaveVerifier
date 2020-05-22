@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Clone)]
 pub struct VarDecl
 {
 	pub var_type : super::data_type::DataType,

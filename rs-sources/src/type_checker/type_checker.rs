@@ -1,15 +1,32 @@
 use crate::ast;
 
+/* Members of VarTypePair:
+ * 1) Variable name
+ * 2) Type of variable */
+#[derive(Clone)]
 pub struct VarTypePair(String, ast::data_type::DataType);
+
+
+/* Members of FuncIdentifierTuple:
+ * 1) Name of function
+ * 2) Return type
+ * 3) Types of each input argument */
+#[derive(Clone)]
+pub struct FuncIdentifierTuple(pub String, pub ast::data_type::DataType, pub Vec<ast::data_type::DataType>);
 
 /* This iterates over the commands that make up the program.
  * Depending on what kind of command we're looking at, we
  * will type-check each one of the sub-expressions of the
  * current command based off whether they're AExps or BExps. */
-pub fn iterate_through_ast(cmd: ast::cmd::Cmd, var_types: &mut std::vec::Vec<VarTypePair>) -> Result<&mut std::vec::Vec<VarTypePair>, String> {
-    println!("cmd: {}", cmd);
+pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarTypePair>,
+                           fn_types: &std::vec::Vec<FuncIdentifierTuple>, curr_fn_type: ast::data_type::DataType)
+                           -> Result<std::vec::Vec<VarTypePair>, String> {
+    //println!("cmd: {}", cmd);
     match cmd {
-        ast::cmd::Cmd::Skip => Result::Ok(var_types),
+        // Skip
+        ast::cmd::Cmd::Skip => Ok(var_types),
+
+        // Variable Type Declaration
         ast::cmd::Cmd::VarDecl{d} => {
             //1. Check to see if var's type was already declared.
             //2. If so, error.
@@ -18,30 +35,32 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, var_types: &mut std::vec::Vec<Var
             if (*var_types).iter().any(|i| i.0 == var.name) {
                 panic!("Error: variable {} was declared more than once.", var.name)
             } else {
-                (*var_types).push(VarTypePair(var.name, var.var_type));
-                Result::Ok(var_types)
+                var_types.push(VarTypePair(var.name, var.var_type));
+                Ok(var_types)
             }
         },
-        ast::cmd::Cmd::Assign{var, e} => {
-            //1. Figure out type of LHS, make sure it was previously declared.
-            //1. Figure out type of RHS + make sure it is well-typed.
-            //2. Check to make sure LHS var is:
-            //   a. Already declared.
-            //   b. Type(LHS) = Type(RHS)
 
-            let (is_prev_decl, decl_type) = get_var_type(var_types, &(*var).name);
+        // Variable assignment
+        ast::cmd::Cmd::Assign{var, e} => {
+            /* 1. Figure out type of LHS, make sure it was previously declared.
+             * 2. Figure out type of RHS + make sure it is well-typed.
+             * 3. Check to make sure LHS var is:
+             *   a. Already declared.
+             *   b. Type(LHS) = Type(RHS). */
+
+            let (is_prev_decl, decl_type) = get_var_type(&var_types, &(*var).name);
 
             if is_prev_decl == false {
                 Err("Error: an assign uses variable () which has not yet been declared.". to_string())
             } else {
                 match *e {
                     ast::exp::Exp::A{e} => {
-                        let res = check_aexpr_type(&e, var_types);
+                        let res = check_aexpr_type(&e, &var_types);
                         if res.is_ok() {
-                            if res == Result::Ok(decl_type) {
+                            if res == Ok(decl_type) {
                                 Ok(var_types)
                             } else {
-                                Err("Error: assign's LHS type does not match RHS type.". to_string())
+                                Err("Error: variable being assigned to does not have same type as RHS type.". to_string())
                             }
                         } else {
                             Err("Error: assign failed on not well-typed bexp.". to_string())
@@ -49,12 +68,12 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, var_types: &mut std::vec::Vec<Var
                         }
                     },
                     ast::exp::Exp::B{e} => {
-                        let res = check_bexpr_type(&e, var_types);
+                        let res = check_bexpr_type(&e, &var_types);
                         if res.is_ok() {
-                            if res == Result::Ok(decl_type) {
+                            if res == Ok(decl_type) {
                                 Ok(var_types)
                             } else {
-                                Err("Error: assign's LHS type does not match RHS type.". to_string())
+                                Err("Error: variable being assigned to does not have same type as RHS type.". to_string())
                             }
                         } else {
                             Err("Error: assign failed on not well-typed bexp.". to_string())
@@ -64,31 +83,104 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, var_types: &mut std::vec::Vec<Var
                 }
             }
         },
-        /*ast::cmd::Cmd::IfElse{cond, tr_cmd, fa_cmd} => {
-            //check_bexpr_type(*cond);
-            Result::Err("Error: not implemented yet". to_string())
+
+        // If-Else
+        ast::cmd::Cmd::IfElse{cond, tr_cmd, fa_cmd} => {
+            /* Note: I need to make sure that the scope is preserved.
+             * Any variables declared inside tr_cmd or fa_cmd should not
+             * be seen outside. */
+            /* FIXME: If possible, try to find a way to not have to use .clone().
+             * It's costly, but I don't think there's a better way since I can't
+             * use references (if tr_cmd alters the reference, fa_cmd shouldn't
+             * see that change). For now this works, see if alternative in future. */
+            let cond_res = match check_bexpr_type(&cond, &var_types) {
+                Ok(cond_type) => cond_type,
+                Err(cond_why) => panic!("{}", cond_why),
+            };
+            if cond_res != ast::data_type::DataType::Bool {
+                Err("Error: use of expression () as condition for if-else, but it's not a boolean.". to_string())
+            } else {
+                match iterate_through_ast(*tr_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                    Ok(_)      => (),
+                    Err(why_t) => panic!("{}", why_t),
+                };
+                match iterate_through_ast(*fa_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                    Ok(_)      => (),
+                    Err(why_f) => panic!("{}", why_f),
+                };
+                Ok(var_types)
+            }
         },
-        ast::cmd::Cmd::WhileLoop{cond, lp_cmd} =>
+
+        // While loop
+        /*ast::cmd::Cmd::WhileLoop{cond, lp_cmd} => Ok(var_types),
             Result::Err("Error: not implemented yet". to_string()),*/
 
         //Seq
         ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
-            let fst_res = iterate_through_ast(*fst_cmd, var_types);
+            /* Note: We have to make sure we pass modified var_types from
+             * first command result into handling second command. */
+            let fst_res = iterate_through_ast(*fst_cmd, var_types, fn_types, curr_fn_type);
             let var_types_1 = match fst_res {
                 Ok(vt1)   => vt1,
-                Err(why1) => panic!("Error: {}", why1)
+                Err(why1) => panic!("{}", why1)
             };
-            let snd_res = iterate_through_ast(*snd_cmd, var_types_1);
+            let snd_res = iterate_through_ast(*snd_cmd, var_types_1, fn_types, curr_fn_type);
             match snd_res {
-                Ok(vt2)  => Result::Ok(vt2),
-                Err(why2)=> panic!("Error: {}", why2)
+                Ok(vt2)  => Ok(vt2),
+                Err(why2)=> panic!("{}", why2)
             }
         },
 
-        /*ast::cmd::Cmd::FnDecl{prototype, fn_cmd} =>
-            Result::Err("Error: not implemented yet". to_string()),
-        ast::cmd::Cmd::Return{e} =>
-            Result::Err("Error: not implemented yet". to_string()),*/
+        // Function declaration (note: we already populated fn_types with this)
+        ast::cmd::Cmd::FnDecl{prototype, fn_cmd} => {
+            /* 1. Iterate over prototype's var_decl_list. Add each
+             *    arg's type to var_types (for just the fn's
+             *    command's scope). Presumably, var_types should
+             *    only have global var's prior to this.
+             * 2. With var_types populated with fn's arg types,
+             *    make sure the fn's commands are well-typed.
+             * 3. When all is done, we need to make sure any
+             *    return's type matches fn's type. (can probably be done in return cmd instead) */
+            for var_decl in &((*prototype).var_decl_list) {
+                var_types.push(VarTypePair(var_decl.name.clone(), var_decl.var_type));
+            }
+
+            match iterate_through_ast(*fn_cmd, var_types.clone(), fn_types, (*prototype).ret_type) {
+                Ok(_vt)    => Ok(var_types),
+                Err(why) => panic!("{}", why)
+            }
+        },
+
+        // Return
+        ast::cmd::Cmd::Return{e} => {
+            match *e {
+                ast::exp::Exp::A{e} => {
+                    let res = check_aexpr_type(&e, &var_types);
+                    if res.is_ok() {
+                        if res == Ok(curr_fn_type) {
+                            Ok(var_types)
+                        } else {
+                            Err("Error: 'return ()' does not have same type as function type.". to_string())
+                        }
+                    } else {
+                        Err("Error: 'return ()' is not well-formed.". to_string())
+                    }
+                },
+                ast::exp::Exp::B{e} => {
+                    let res = check_bexpr_type(&e, &var_types);
+                    if res.is_ok() {
+                        if res == Ok(curr_fn_type) {
+                            Ok(var_types)
+                        } else {
+                            Err("Error: 'return ()' does not have same type as function type.". to_string())
+                        }
+                    } else {
+                        Err("Error: 'return ()' is not well-formed.". to_string())
+                    }
+                },
+            }
+        },
         _ => Err("Error: cmd not yet implemented". to_string())
     }
 }
@@ -111,7 +203,7 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
                 if l_type != Ok(ast::data_type::DataType::Bool) {
                     // l_type is incorrect type.
                     panic!("Error: expression {} is not of type bool, but used as such in bool comparison.", l);
-                } else if r_type != Result::Ok(ast::data_type::DataType::Bool)  {
+                } else if r_type != Ok(ast::data_type::DataType::Bool)  {
                     // r_type is incorrect type.
                     panic!("Error: expression {} is not of type bool, but used as such in bool comparison.", r);
                 } else {
@@ -146,14 +238,8 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
                     // r_type is incorrect type.
                     panic!("Error: expression {} is not of type Int32/Float32, but used as such in arith comparison.", r);
                 } else {
-                    /* l_type and r_type are both of Int32 or Float32 type.
-                     * If both are Int32, expr type is Int32.
-                     * Otherwise expr type is Float32. */
-                    if l_type == Ok(ast::data_type::DataType::Int32) && r_type == Ok(ast::data_type::DataType::Int32) {
-                        Ok(ast::data_type::DataType::Int32)
-                    } else {
-                        Ok(ast::data_type::DataType::Float32)
-                    }
+                    // l_type and r_type are both of Int32/Float32 type. Therefore entire expr type is Bool.
+                    Ok(ast::data_type::DataType::Bool)
                 }
             } else {
                 //If one of the checks created an error, print out why.
@@ -253,7 +339,6 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
 pub fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -> (bool, ast::data_type::DataType) {
     let mut var_type = ast::data_type::DataType::Void;
     let mut found = false;
-    println!("Vector length: {}", (*var_types).len());
     for pair in var_types {
         if pair.0 == *var_name {
             found = true;
@@ -262,4 +347,28 @@ pub fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -
         }
     }
     (found, var_type)
+}
+
+pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIdentifierTuple>) -> () {
+    match cmd {
+        ast::cmd::Cmd::FnDecl{prototype, fn_cmd : _} => {
+            /* If a function declaration is found, we'll need to record
+             * the function's name, its return type, and the type of
+             * all of the function's arguments. */
+            let mut arg_type_list : Vec<ast::data_type::DataType> = vec![];
+            for var_decl in &((*prototype).var_decl_list) {
+                // Add the type of each argument to arg_type_list.
+                arg_type_list.push(var_decl.var_type);
+            }
+            (*fn_types).push(FuncIdentifierTuple((*prototype).name.clone(), (*prototype).ret_type, arg_type_list))
+        },
+        ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
+            // Check sub-sequences to see if any function declarations.
+            gather_fn_types(&(*fst_cmd), fn_types);
+            gather_fn_types(&(*snd_cmd), fn_types);
+            ()
+        },
+        // In every other case, do nothing (since no possible function declaration).
+        _ => ()
+    }
 }

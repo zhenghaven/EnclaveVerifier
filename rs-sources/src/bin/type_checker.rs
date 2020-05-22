@@ -59,10 +59,18 @@ fn main()
 
 
 	println!("\nIteration test:\n");
-    let mut vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
-    let res = type_checker::type_checker::iterate_through_ast(example_prog_1, &mut vec);
-    match res {
-      Result::Ok(_)    => println!("Successful type checking!"),
-      Result::Err(err) => println!("Failed type checking:\n{}", err),
-    }
+	let var_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
+	let mut fn_vec:  Vec<type_checker::type_checker::FuncIdentifierTuple> = Vec::new();
+	type_checker::type_checker::gather_fn_types(&example_prog_1, &mut fn_vec);
+	for elem in &fn_vec {
+		println!("{} : {}", elem.0, elem.1);
+		for arg in &elem.2 {
+			println!("\t{}", arg);
+		}
+	};
+	let res = type_checker::type_checker::iterate_through_ast(example_prog_1, var_vec, &fn_vec, ast::data_type::DataType::Void);
+	match res {
+		Ok(_)    => println!("Successful type checking!"),
+		Err(err) => println!("Failed type checking:\n{}", err),
+	}
 }
