@@ -1,5 +1,8 @@
 use crate::ast;
 
+use std::string::String;
+use std::vec::Vec;
+
 /* Members of VarTypePair:
  * 1) Variable name
  * 2) Type of variable */
@@ -51,7 +54,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
             let (is_prev_decl, decl_type) = get_var_type(&var_types, &(*var).name);
 
             if is_prev_decl == false {
-                Err("Error: an assign uses variable () which has not yet been declared.". to_string())
+                Err(format!("{}", "Error: an assign uses variable () which has not yet been declared."))
             } else {
                 match *e {
                     ast::exp::Exp::A{e} => {
@@ -60,10 +63,10 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                             if res == Ok(decl_type) {
                                 Ok(var_types)
                             } else {
-                                Err("Error: variable being assigned to does not have same type as RHS type.". to_string())
+                                Err(format!("{}", "Error: variable being assigned to does not have same type as RHS type."))
                             }
                         } else {
-                            Err("Error: assign failed on not well-typed bexp.". to_string())
+                            Err(format!("{}", "Error: assign failed on not well-typed bexp."))
                             //panic!("Error: bexpr {} checked is not well typed.", e);
                         }
                     },
@@ -73,10 +76,10 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                             if res == Ok(decl_type) {
                                 Ok(var_types)
                             } else {
-                                Err("Error: variable being assigned to does not have same type as RHS type.". to_string())
+                                Err(format!("{}", "Error: variable being assigned to does not have same type as RHS type."))
                             }
                         } else {
-                            Err("Error: assign failed on not well-typed bexp.". to_string())
+                            Err(format!("{}", "Error: assign failed on not well-typed bexp."))
                             //panic!("Error: bexpr {} checked is not well typed.", e);
                         }
                     },
@@ -98,7 +101,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                 Err(cond_why) => panic!("{}", cond_why),
             };
             if cond_res != ast::data_type::DataType::Bool {
-                Err("Error: use of expression () as condition for if-else, but it's not a boolean.". to_string())
+                Err(format!("{}", "Error: use of expression () as condition for if-else, but it's not a boolean."))
             } else {
                 match iterate_through_ast(*tr_cmd, var_types.clone(), fn_types, curr_fn_type) {
                     Ok(_)      => (),
@@ -161,10 +164,10 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                         if res == Ok(curr_fn_type) {
                             Ok(var_types)
                         } else {
-                            Err("Error: 'return ()' does not have same type as function type.". to_string())
+                            Err(format!("{}", "Error: 'return ()' does not have same type as function type."))
                         }
                     } else {
-                        Err("Error: 'return ()' is not well-formed.". to_string())
+                        Err(format!("{}", "Error: 'return ()' is not well-formed."))
                     }
                 },
                 ast::exp::Exp::B{e} => {
@@ -173,15 +176,15 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                         if res == Ok(curr_fn_type) {
                             Ok(var_types)
                         } else {
-                            Err("Error: 'return ()' does not have same type as function type.". to_string())
+                            Err(format!("{}", "Error: 'return ()' does not have same type as function type."))
                         }
                     } else {
-                        Err("Error: 'return ()' is not well-formed.". to_string())
+                        Err(format!("{}", "Error: 'return ()' is not well-formed."))
                     }
                 },
             }
         },
-        _ => Err("Error: cmd not yet implemented". to_string())
+        _ => Err(format!("{}", "Error: cmd not yet implemented"))
     }
 }
 
@@ -222,7 +225,7 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
                     _         => (),
                 };
                 assert!(false);//If we are in this else, we will never reach here.
-                Err("Can't reach here.". to_string())
+                Err(format!("{}", "Can't reach here."))
             }
         },
 
@@ -253,7 +256,7 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
                     _         => (),
                 };
                 assert!(false);//If we are in this else, we will never reach here.
-                Err("Can't reach here.". to_string())
+                Err(format!("{}", "Can't reach here."))
             }
         },
 
@@ -299,7 +302,7 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
             if found {
                 Ok(fn_ret_type)
             } else {
-                Err("Error: function call (), but no matching declaration.". to_string())
+                Err(format!("{}", "Error: function call (), but no matching declaration."))
             }
         },
     }
@@ -347,7 +350,7 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
                     _         => (),
                 };
                 assert!(false);//If we are in this else, we will never reach here.
-                Err("Can't reach here.". to_string())
+                Err(format!("{}", "Can't reach here."))
             }
         },
 
@@ -395,7 +398,7 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
             if found {
                 Ok(fn_ret_type)
             } else {
-                Err("Error: function call (), but no matching declaration.". to_string())
+                Err(format!("{}", "Error: function call (), but no matching declaration."))
             }
         },
     }
