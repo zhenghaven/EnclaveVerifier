@@ -5,9 +5,9 @@ use std::string::String;
 
 pub struct FnProtoType
 {
-	ret_type : super::data_type::DataType,
-	name : String,
-	var_decl_list : Vec<super::var_general::VarDecl>,
+	pub ret_type : super::data_type::DataType,
+	pub name : String,
+	pub var_decl_list : Vec<super::var_general::VarDecl>,
 }
 
 impl FnProtoType
@@ -116,8 +116,8 @@ impl fmt::Display for FnProtoType
 
 pub struct FnCall
 {
-	name : String,
-	exp_list : Vec<super::exp::Exp>,
+	pub name : String,
+	pub exp_list : Vec<super::exp::Exp>,
 }
 
 impl FnCall

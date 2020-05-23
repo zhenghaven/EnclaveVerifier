@@ -3,10 +3,11 @@ use std::fmt;
 use std::string::String;
 use std::vec::Vec;
 
+#[derive(Clone)]
 pub struct VarDecl
 {
-	var_type : super::data_type::DataType,
-	name : String,
+	pub var_type : super::data_type::DataType,
+	pub name : String,
 }
 
 impl VarDecl
@@ -58,7 +59,7 @@ impl fmt::Display for VarDecl
 
 pub struct VarRef
 {
-	name : String,
+	pub name : String,
 }
 
 impl VarRef

@@ -3,6 +3,7 @@ use std::fmt;
 use std::vec::Vec;
 use std::string::String;
 
+#[derive(PartialEq, Copy, Clone)]
 pub enum DataType
 {
 	Void,
