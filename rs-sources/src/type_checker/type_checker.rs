@@ -55,7 +55,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
             } else {
                 match *e {
                     ast::exp::Exp::A{e} => {
-                        let res = check_aexpr_type(&e, &var_types);
+                        let res = check_aexpr_type(&e, &var_types, fn_types);
                         if res.is_ok() {
                             if res == Ok(decl_type) {
                                 Ok(var_types)
@@ -68,7 +68,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                         }
                     },
                     ast::exp::Exp::B{e} => {
-                        let res = check_bexpr_type(&e, &var_types);
+                        let res = check_bexpr_type(&e, &var_types, fn_types);
                         if res.is_ok() {
                             if res == Ok(decl_type) {
                                 Ok(var_types)
@@ -93,7 +93,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              * It's costly, but I don't think there's a better way since I can't
              * use references (if tr_cmd alters the reference, fa_cmd shouldn't
              * see that change). For now this works, see if alternative in future. */
-            let cond_res = match check_bexpr_type(&cond, &var_types) {
+            let cond_res = match check_bexpr_type(&cond, &var_types, fn_types) {
                 Ok(cond_type) => cond_type,
                 Err(cond_why) => panic!("{}", cond_why),
             };
@@ -156,7 +156,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
         ast::cmd::Cmd::Return{e} => {
             match *e {
                 ast::exp::Exp::A{e} => {
-                    let res = check_aexpr_type(&e, &var_types);
+                    let res = check_aexpr_type(&e, &var_types, fn_types);
                     if res.is_ok() {
                         if res == Ok(curr_fn_type) {
                             Ok(var_types)
@@ -168,7 +168,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                     }
                 },
                 ast::exp::Exp::B{e} => {
-                    let res = check_bexpr_type(&e, &var_types);
+                    let res = check_bexpr_type(&e, &var_types, fn_types);
                     if res.is_ok() {
                         if res == Ok(curr_fn_type) {
                             Ok(var_types)
@@ -190,15 +190,16 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
  * a variable is used we want to make sure that that variable
  * is of a type appropriate for the associated Bexp. For instance,
  * if we have "x != 5", we want to make sure x is an Int32 type. */
-fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePair>) -> Result<ast::data_type::DataType, String> {
+fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePair>,
+                    fn_types: &std::vec::Vec<FuncIdentifierTuple>) -> Result<ast::data_type::DataType, String> {
     match bexp {
         // Bool const (true/false)
         ast::bexp::Bexp::BoolConst{v : _} => Ok(ast::data_type::DataType::Bool),
 
         // Bool comparison
         ast::bexp::Bexp::Beq{l, r} | ast::bexp::Bexp::Bneq{l, r} | ast::bexp::Bexp::And{l, r} | ast::bexp::Bexp::Or{l, r} => {
-            let l_type = check_bexpr_type(l, var_types);
-            let r_type = check_bexpr_type(r, var_types);
+            let l_type = check_bexpr_type(l, var_types, fn_types);
+            let r_type = check_bexpr_type(r, var_types, fn_types);
             if l_type.is_ok() && r_type.is_ok() {
                 if l_type != Ok(ast::data_type::DataType::Bool) {
                     // l_type is incorrect type.
@@ -228,8 +229,8 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
         // Arith comparison
         ast::bexp::Bexp::Aeq{l, r} | ast::bexp::Bexp::Aneq{l, r} | ast::bexp::Bexp::Lt{l ,r} |
         ast::bexp::Bexp::Lte{l, r} | ast::bexp::Bexp::Gt{l, r}   | ast::bexp::Bexp::Gte{l, r}  => {
-            let l_type = check_aexpr_type(l, var_types);
-            let r_type = check_aexpr_type(r, var_types);
+            let l_type = check_aexpr_type(l, var_types, fn_types);
+            let r_type = check_aexpr_type(r, var_types, fn_types);
             if l_type.is_ok() && r_type.is_ok() {
                 if l_type != Ok(ast::data_type::DataType::Int32) && l_type != Ok(ast::data_type::DataType::Float32) {
                     // l_type is incorrect type.
@@ -266,12 +267,46 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
                 panic!("Error: use of variable {} before declared.", (*v).name)
             }
         },
-        /*ast::bexp::Bexp::FnCall{fc} => false,*/
-        _ => Err("Error: bexp not currently implemented". to_string()),
+        ast::bexp::Bexp::FnCall{fc} => {
+            /* Make sure a function matching this function
+             * call exists (matching name + arg types). If
+             * so, return function type. */
+
+            // Iterate over FnCall's arguments and create a vector holding their types.
+            let mut fncall_arg_types : std::vec::Vec<ast::data_type::DataType> = vec![];
+            for arg in &fc.exp_list {
+                let arg_type : ast::data_type::DataType;
+                let arg_res = match arg {
+                    ast::exp::Exp::A{e} => {
+                        check_aexpr_type(&e, &var_types, fn_types)
+                    },
+                    ast::exp::Exp::B{e} => {
+                        check_bexpr_type(&e, &var_types, fn_types)
+                    },
+                };
+                arg_type = match arg_res {
+                    Ok(etype) => etype,
+                    Err(why)  => panic!("{}", why),
+                };
+                fncall_arg_types.push(arg_type);
+            };
+
+            /* Check to see if a function declaration exists with name
+             * fc.name and matching argument type list (compared to
+             * fncall_arg_types). If so, return the type returned
+             * by that function. */
+            let (found, fn_ret_type) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
+            if found {
+                Ok(fn_ret_type)
+            } else {
+                Err("Error: function call (), but no matching declaration.". to_string())
+            }
+        },
     }
 }
 
-fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePair>) -> Result<ast::data_type::DataType, String> {
+fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePair>,
+                    fn_types: &std::vec::Vec<FuncIdentifierTuple>) -> Result<ast::data_type::DataType, String> {
     match aexp {
         // Int const
         ast::aexp::Aexp::IntConst{v : _} => Ok(ast::data_type::DataType::Int32),
@@ -282,8 +317,8 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
         // Arith operations
         ast::aexp::Aexp::Add{l, r} | ast::aexp::Aexp::Sub{l, r} | ast::aexp::Aexp::Mul{l, r} |
         ast::aexp::Aexp::Div{l, r} | ast::aexp::Aexp::Mod{l, r} => {
-            let l_type = check_aexpr_type(l, var_types);
-            let r_type = check_aexpr_type(r, var_types);
+            let l_type = check_aexpr_type(l, var_types, fn_types);
+            let r_type = check_aexpr_type(r, var_types, fn_types);
             if l_type.is_ok() && r_type.is_ok() {
                 if l_type != Ok(ast::data_type::DataType::Int32) && l_type != Ok(ast::data_type::DataType::Float32) {
                     // l_type is incorrect type.
@@ -326,17 +361,49 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
                 panic!("Error: use of variable {} before declared.", (*v).name)
             }
         },
-        /*ast::aexp::Aexp::FnCall{fc} => {
-            print!("{}", fc);
-            true
-        },*/
-        _ => Err("Error: aexp not currently implemented". to_string()),
+
+        // Function call
+        ast::aexp::Aexp::FnCall{fc} => {
+            /* Make sure a function matching this function
+             * call exists (matching name + arg types). If
+             * so, return function type. */
+
+            // Iterate over FnCall's arguments and create a vector holding their types.
+            let mut fncall_arg_types : std::vec::Vec<ast::data_type::DataType> = vec![];
+            for arg in &fc.exp_list {
+                let arg_type : ast::data_type::DataType;
+                let arg_res = match arg {
+                    ast::exp::Exp::A{e} => {
+                        check_aexpr_type(&e, &var_types, fn_types)
+                    },
+                    ast::exp::Exp::B{e} => {
+                        check_bexpr_type(&e, &var_types, fn_types)
+                    },
+                };
+                arg_type = match arg_res {
+                    Ok(etype) => etype,
+                    Err(why)  => panic!("{}", why),
+                };
+                fncall_arg_types.push(arg_type);
+            };
+
+            /* Check to see if a function declaration exists with name
+             * fc.name and matching argument type list (compared to
+             * fncall_arg_types). If so, return the type returned
+             * by that function. */
+            let (found, fn_ret_type) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
+            if found {
+                Ok(fn_ret_type)
+            } else {
+                Err("Error: function call (), but no matching declaration.". to_string())
+            }
+        },
     }
 }
 
 /* This function helps us know if a variable has already been defined
  * and if it was, what its type was. */
-pub fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -> (bool, ast::data_type::DataType) {
+fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -> (bool, ast::data_type::DataType) {
     let mut var_type = ast::data_type::DataType::Void;
     let mut found = false;
     for pair in var_types {
@@ -371,4 +438,25 @@ pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIde
         // In every other case, do nothing (since no possible function declaration).
         _ => ()
     }
+}
+
+fn get_fn_return_type(fn_types: &std::vec::Vec<FuncIdentifierTuple>, fn_name: &String,
+                      arg_types : &Vec<ast::data_type::DataType>) -> (bool, ast::data_type::DataType) {
+    let mut found = false;
+    let mut f_type : ast::data_type::DataType = ast::data_type::DataType::Void;
+
+    /* Iterate through fn_types to see if a function
+     * declaration even exists under the name fn_name. */
+    for func in fn_types {
+        // If we find a function declaration that matches this function call.
+        if func.0 == *fn_name && func.2.len() == arg_types.len() {
+            let matching = arg_types.iter().zip(&func.2).filter(|&(t1, t2)| t1 == t2).count();
+            if matching == arg_types.len() {
+                f_type = func.1;
+                found = true;
+                break;
+            }
+        }
+    }
+    (found, f_type)
 }

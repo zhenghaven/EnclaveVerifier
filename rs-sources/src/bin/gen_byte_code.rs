@@ -35,6 +35,55 @@ fn is_prime(x : i32) -> bool
 	return is_prime;
 }
 
+fn construct_example_prog_ifel() -> cmd::Cmd
+{
+	use aexp::constructor_helper::*;
+	use bexp::constructor_helper::*;
+	use exp::constructor_helper::*;
+	use cmd::constructor_helper::*;
+
+    /* Function:
+     * fn entry(x: Int32) -> () {
+     *   if (x >= 0) && (x <= 9) {
+     *     Int32 y;
+     *     y = x + 1;
+     *     return entry(y);
+     *   } else {
+     *     return x;
+     *   }
+     * } */
+
+	// arg list: x: Int32
+	let var_decl_list = vec![
+		var_general::VarDecl::new(data_type::DataType::Int32, "x".to_string()),
+    ];
+
+	//fn entry(x: Int32) -> ()
+	let fn_prototype = func_general::FnProtoType::new(data_type::DataType::Int32, "entry".to_string(), var_decl_list);
+
+	// Int32 y; y = x + 1; return entry(y);
+	let y_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "y".to_string()));
+	let y_asg = assign(var_general::VarRef::from_str("y"), ("x".to_aexp() + 1i32.to_aexp()).to_exp());
+	let ret_t = ret(
+		(aexp::Aexp::FnCall{
+			fc : func_general::FnCall::new("entry".to_string(), vec!["y".to_aexp().to_exp()])
+		}).to_exp()
+	);
+    let seq_t = seq(y_dec, seq(y_asg, ret_t));
+
+    // return x;
+	let ret_f = ret(("x".to_aexp()).to_exp());
+
+
+	let x_gte_0 = "x".to_aexp().gte(0i32.to_aexp());
+	let x_lte_9 = "x".to_aexp().lte(9i32.to_aexp());
+
+	let if_el_cmd = if_el(x_gte_0.and(x_lte_9), seq_t, ret_f);
+
+	let entry_decl = fn_dc(fn_prototype, if_el_cmd);
+    entry_decl
+}
+
 fn construct_example_prog_bexps() -> cmd::Cmd
 {
 	use aexp::constructor_helper::*;
@@ -218,7 +267,8 @@ fn main()
 
 	let example_prog_1_name = "is_prime";
 	//let example_prog_1 = construct_example_prog_bexps();
-	let example_prog_1 = construct_example_prog_1();
+	let example_prog_1 = construct_example_prog_ifel();
+	//let example_prog_1 = construct_example_prog_1();
 	let mut example_prog_1_lines : Vec<IndentString> = vec![];
 	example_prog_1.to_indent_lines(&mut example_prog_1_lines);
 	println!("Example program {}:\n{}\n", example_prog_1_name, indent_lines_to_string(&example_prog_1_lines, '\t'));

@@ -113,8 +113,8 @@ impl fmt::Display for FnProtoType
 
 pub struct FnCall
 {
-	name : String,
-	exp_list : Vec<super::exp::Exp>,
+	pub name : String,
+	pub exp_list : Vec<super::exp::Exp>,
 }
 
 impl FnCall
