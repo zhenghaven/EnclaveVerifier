@@ -1,0 +1,3 @@
+[submodule "rs-libs/incubator-teaclave-sgx-sdk"]
+	path = rs-libs/incubator-teaclave-sgx-sdk
+	url = https://github.com/apache/incubator-teaclave-sgx-sdk.git
