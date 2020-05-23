@@ -25,23 +25,23 @@ Or you can replace the `$(pwd)` with the *absolute* path to the repo folder.
 
 	* interpreter
 
-```shell
-export SGX_MODE=SW
+	```shell
+	export SGX_MODE=SW
 
-cd /root/sgx/enclave-bin/interpreter
+	cd /root/sgx/enclave-bin/interpreter
 
-make
-```
+	make
+	```
 
 	* type_checker
 
-```shell
-export SGX_MODE=SW
+	```shell
+	export SGX_MODE=SW
 
-cd /root/sgx/enclave-bin/type_checker
+	cd /root/sgx/enclave-bin/type_checker
 
-make
-```
+	make
+	```
 
 ## Run Enclave Apps (inside the docker instance)
 
