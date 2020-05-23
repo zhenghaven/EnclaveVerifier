@@ -1,0 +1,45 @@
+[package]
+name = "enclave_vrfy_type_checker"
+version = "1.0.0"
+authors = ["Hunter Coffman", "Haofan Zheng"]
+
+[lib]
+name = "enclave_vrfy_type_checker"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+enclave_verifier = { path = "../../../rs-sources", features = ["sgx_env_ver"] }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["backtrace"] }
+sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_alloc = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_alloc" }
+sgx_build_helper = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_build_helper" }
+sgx_cov = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_cov" }
+sgx_crypto_helper = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_crypto_helper" }
+sgx_libc = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_libc" }
+sgx_rand = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_rand" }
+sgx_rand_derive = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_rand_derive" }
+sgx_serialize = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_serialize" }
+sgx_serialize_derive = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_serialize_derive" }
+sgx_serialize_derive_internals = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_serialize_derive_internals" }
+sgx_tcrypto = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tcrypto" }
+sgx_tcrypto_helper = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tcrypto_helper" }
+sgx_tdh = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tdh" }
+sgx_tkey_exchange = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tkey_exchange" }
+sgx_tprotected_fs = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tprotected_fs" }
+sgx_trts = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_trts" }
+sgx_tse = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tse" }
+sgx_tseal = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tseal" }
+sgx_tstd = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tstd" }
+sgx_tunittest = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_tunittest" }
+sgx_types = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_types" }
+sgx_ucrypto = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_ucrypto" }
+sgx_unwind = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_unwind" }
+sgx_urts = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_urts" }
