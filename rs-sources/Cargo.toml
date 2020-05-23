@@ -6,4 +6,16 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+# no features by default
+default = []
+
+# Our "sgx_env_ver" feature depends on nothing else.
+sgx_env_ver = [ "sgx_tstd" ]
+
 [dependencies]
+
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["backtrace"], optional = true }
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_tstd = { path = "../rs-libs/incubator-teaclave-sgx-sdk/sgx_tstd" }

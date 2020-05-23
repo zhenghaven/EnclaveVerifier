@@ -1,3 +1,6 @@
+use std::string::String;
+use std::vec::Vec;
+
 /// Types that can be serialized to bytecode.
 pub trait Serializible
 {

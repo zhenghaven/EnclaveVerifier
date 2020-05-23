@@ -1,5 +1,10 @@
 use std::fmt;
 
+use std::vec::Vec;
+use std::string::String;
+
+use std::boxed::Box;
+
 pub enum Cmd
 {
 	Skip,
@@ -224,7 +229,7 @@ impl super::Deserializible<Cmd> for Cmd
 		}
 		else
 		{
-			Result::Err("Failed to parse Cmd. Bytes are shorter than expected.". to_string())
+			Result::Err(format!("{}", "Failed to parse Cmd. Bytes are shorter than expected."))
 		}
 	}
 }
@@ -256,6 +261,8 @@ impl fmt::Display for Cmd
 
 pub mod constructor_helper
 {
+	use std::boxed::Box;
+
 	pub fn skip() -> super::Cmd
 	{
 		super::Cmd::Skip
@@ -338,7 +345,7 @@ impl ByteId
 			5u8 => Result::Ok(ByteId::Seq),
 			6u8 => Result::Ok(ByteId::FnDecl),
 			7u8 => Result::Ok(ByteId::Return),
-			_   => Result::Err("Unrecognized type ID from byte for Cmd.".to_string())
+			_   => Result::Err(format!("{}", "Unrecognized type ID from byte for Cmd."))
 		}
 	}
 }

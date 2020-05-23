@@ -1,5 +1,8 @@
 use std::fmt;
 
+use std::string::String;
+use std::vec::Vec;
+
 pub struct VarDecl
 {
 	var_type : super::data_type::DataType,
@@ -62,7 +65,7 @@ impl VarRef
 {
 	pub fn from_str(name : &str) -> VarRef
 	{
-		VarRef{name : name.to_string()}
+		VarRef{name : format!("{}", name)}
 	}
 }
 

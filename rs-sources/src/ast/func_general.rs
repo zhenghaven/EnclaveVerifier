@@ -1,5 +1,8 @@
 use std::fmt;
 
+use std::vec::Vec;
+use std::string::String;
+
 pub struct FnProtoType
 {
 	ret_type : super::data_type::DataType,

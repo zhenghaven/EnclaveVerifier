@@ -1,5 +1,10 @@
 use std::fmt;
 
+use std::vec::Vec;
+use std::string::String;
+
+use std::boxed::Box;
+
 pub enum Bexp
 {
 	/* T / F */  BoolConst {v :  bool},
@@ -254,7 +259,7 @@ impl super::Deserializible<Bexp> for Bexp
 		}
 		else
 		{
-			Result::Err("Failed to parse Bexp. Bytes are shorter than expected.". to_string())
+			Result::Err(format!("{}", "Failed to parse Bexp. Bytes are shorter than expected."))
 		}
 	}
 }
@@ -284,6 +289,8 @@ impl fmt::Display for Bexp
 
 pub mod constructor_helper
 {
+	use std::boxed::Box;
+
 	//Helper for constant types:
 
 	pub trait ToBexp
@@ -430,7 +437,7 @@ impl ByteId
 			10u8 => Result::Ok(ByteId::Gte),
 			11u8 => Result::Ok(ByteId::Var),
 			12u8 => Result::Ok(ByteId::FnCall),
-			_   => Result::Err("Unrecognized type ID from byte for Aexp.".to_string())
+			_   => Result::Err(format!("{}", "Unrecognized type ID from byte for Aexp."))
 		}
 	}
 }

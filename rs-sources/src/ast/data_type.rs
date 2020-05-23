@@ -1,5 +1,8 @@
 use std::fmt;
 
+use std::vec::Vec;
+use std::string::String;
+
 pub enum DataType
 {
 	Void,
@@ -29,7 +32,7 @@ impl DataType
 			1u8 => Result::Ok(DataType::Int32),
 			2u8 => Result::Ok(DataType::Float32),
 			3u8 => Result::Ok(DataType::Bool),
-			_   => Result::Err("Unrecognized byte ID for data type.".to_string())
+			_   => Result::Err(format!("{}", "Unrecognized byte ID for data type."))
 		}
 	}
 }

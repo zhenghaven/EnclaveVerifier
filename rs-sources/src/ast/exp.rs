@@ -1,5 +1,8 @@
 use std::fmt;
 
+use std::vec::Vec;
+use std::string::String;
+
 /// Any type of expression
 pub enum Exp
 {
@@ -81,7 +84,7 @@ impl super::Deserializible<Exp> for Exp
 		}
 		else
 		{
-			Result::Err("Failed to parse Exp. Bytes are shorter than expected.". to_string())
+			Result::Err(format!("{}", "Failed to parse Exp. Bytes are shorter than expected."))
 		}
 	}
 }

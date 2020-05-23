@@ -1,5 +1,10 @@
 use std::fmt;
 
+use std::vec::Vec;
+use std::string::String;
+
+use std::boxed::Box;
+
 pub enum Aexp
 {
 	IntConst {v :  i32},
@@ -196,7 +201,7 @@ impl super::Deserializible<Aexp> for Aexp
 		}
 		else
 		{
-			Result::Err("Failed to parse Aexp. Bytes are shorter than expected.". to_string())
+			Result::Err(format!("{}", "Failed to parse Aexp. Bytes are shorter than expected."))
 		}
 	}
 }
@@ -223,6 +228,7 @@ impl fmt::Display for Aexp
 pub mod constructor_helper
 {
 	use std::ops;
+	use std::boxed::Box;
 
 	//Helper for constant types:
 
@@ -362,7 +368,7 @@ impl ByteId
 			6u8 => Result::Ok(ByteId::Mod),
 			7u8 => Result::Ok(ByteId::Var),
 			8u8 => Result::Ok(ByteId::FnCall),
-			_   => Result::Err("Unrecognized type ID from byte for Aexp.".to_string())
+			_   => Result::Err(format!("{}", "Unrecognized type ID from byte for Aexp."))
 		}
 	}
 }
