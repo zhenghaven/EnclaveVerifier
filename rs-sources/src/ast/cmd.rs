@@ -10,6 +10,7 @@ pub enum Cmd
 	Skip,
 	VarDecl   {d : Box<super::var_general::VarDecl>},
 	Assign    {var : Box<super::var_general::VarRef>, e : Box<super::exp::Exp>},
+	FnCall    {fc : super::func_general::FnCall},
 	IfElse    {cond : Box<super::bexp::Bexp>, tr_cmd : Box<Cmd>, fa_cmd : Box<Cmd>},
 	WhileLoop {cond : Box<super::bexp::Bexp>, lp_cmd : Box<Cmd>},
 	Seq       {fst_cmd : Box<Cmd>, snd_cmd : Box<Cmd>},
@@ -26,6 +27,7 @@ impl Cmd
 			Cmd::Skip                               => ByteId::Skip,
 			Cmd::VarDecl{d:_}                       => ByteId::VarDecl,
 			Cmd::Assign{var:_, e:_}                 => ByteId::Assign,
+			Cmd::FnCall{fc:_}                       => ByteId::FnCall,
 			Cmd::IfElse{cond:_, tr_cmd:_, fa_cmd:_} => ByteId::IfElse,
 			Cmd::WhileLoop{cond:_, lp_cmd:_}        => ByteId::WhileLoop,
 			Cmd::Seq{fst_cmd:_, snd_cmd:_}          => ByteId::Seq,
@@ -41,6 +43,7 @@ impl Cmd
 			Cmd::Skip                         => {},
 			Cmd::VarDecl{d}                   => out_lines.push(super::IndentString::Stay(format!("let {};", d))),
 			Cmd::Assign{var, e}               => out_lines.push(super::IndentString::Stay(format!("{} = {};", var, e))),
+			Cmd::FnCall{fc}                   => out_lines.push(super::IndentString::Stay(format!("{};", fc))),
 			Cmd::IfElse{cond, tr_cmd, fa_cmd} =>
 			{
 				out_lines.push(super::IndentString::Stay(format!("if {}", cond)));
@@ -124,6 +127,12 @@ impl super::Serializible for Cmd
 
 				Result::Ok(res)
 			},
+			Cmd::FnCall{fc} =>
+			{
+				res.append(&mut (fc.to_bytes()?));
+
+				Result::Ok(res)
+			},
 			Cmd::IfElse{cond, tr_cmd, fa_cmd} =>
 			{
 				res.append(&mut (cond.to_bytes()?));
@@ -190,6 +199,12 @@ impl super::Deserializible<Cmd> for Cmd
 
 					Result::Ok((bytes_left_2, assign(parsed_var_ref, parsed_e)))
 				},
+				ByteId::FnCall =>
+				{
+					let (bytes_left, parsed_val) = super::func_general::FnCall::from_bytes(&bytes[1..])?;
+
+					Result::Ok((bytes_left, Cmd::FnCall {fc : parsed_val}))
+				},
 				ByteId::IfElse    =>
 				{
 					let (bytes_left_1, parsed_cond) = super::bexp::Bexp::from_bytes(&bytes[1..])?;
@@ -243,6 +258,7 @@ impl fmt::Display for Cmd
 			Cmd::Skip                         => write!(f, ""),
 			Cmd::VarDecl{d}                   => write!(f, "let {};", d),
 			Cmd::Assign{var, e}               => write!(f, "{} = {};", var, e),
+			Cmd::FnCall{fc}                   => write!(f, "{};", fc),
 			Cmd::IfElse{cond, tr_cmd, fa_cmd} =>
 			{
 				match *(*fa_cmd)
@@ -309,6 +325,7 @@ enum ByteId
 	Skip,
 	VarDecl,
 	Assign,
+	FnCall,
 	IfElse,
 	WhileLoop,
 	Seq,
@@ -325,11 +342,12 @@ impl ByteId
 			ByteId::Skip      => 0u8,
 			ByteId::VarDecl   => 1u8,
 			ByteId::Assign    => 2u8,
-			ByteId::IfElse    => 3u8,
-			ByteId::WhileLoop => 4u8,
-			ByteId::Seq       => 5u8,
-			ByteId::FnDecl    => 6u8,
-			ByteId::Return    => 7u8,
+			ByteId::FnCall    => 3u8,
+			ByteId::IfElse    => 4u8,
+			ByteId::WhileLoop => 5u8,
+			ByteId::Seq       => 6u8,
+			ByteId::FnDecl    => 7u8,
+			ByteId::Return    => 8u8,
 		}
 	}
 
@@ -340,11 +358,12 @@ impl ByteId
 			0u8 => Result::Ok(ByteId::Skip),
 			1u8 => Result::Ok(ByteId::VarDecl),
 			2u8 => Result::Ok(ByteId::Assign),
-			3u8 => Result::Ok(ByteId::IfElse),
-			4u8 => Result::Ok(ByteId::WhileLoop),
-			5u8 => Result::Ok(ByteId::Seq),
-			6u8 => Result::Ok(ByteId::FnDecl),
-			7u8 => Result::Ok(ByteId::Return),
+			3u8 => Result::Ok(ByteId::FnCall),
+			4u8 => Result::Ok(ByteId::IfElse),
+			5u8 => Result::Ok(ByteId::WhileLoop),
+			6u8 => Result::Ok(ByteId::Seq),
+			7u8 => Result::Ok(ByteId::FnDecl),
+			8u8 => Result::Ok(ByteId::Return),
 			_   => Result::Err(format!("{}", "Unrecognized type ID from byte for Cmd."))
 		}
 	}
