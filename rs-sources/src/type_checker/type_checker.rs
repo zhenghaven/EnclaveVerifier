@@ -87,6 +87,11 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
             }
         },
 
+        // Fn-Call
+        ast::cmd::Cmd::FnCall{fc} => {
+            Err(format!("{}", "Error: fn call not yet supported as cmd"))
+        }
+
         // If-Else
         ast::cmd::Cmd::IfElse{cond, tr_cmd, fa_cmd} => {
             /* Note: I need to make sure that the scope is preserved.
