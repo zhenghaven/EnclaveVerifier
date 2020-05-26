@@ -38,11 +38,10 @@ fn is_prime(x : i32) -> bool
 fn construct_example_prog_ifel() -> cmd::Cmd
 {
 	use aexp::constructor_helper::*;
-	use bexp::constructor_helper::*;
 	use exp::constructor_helper::*;
 	use cmd::constructor_helper::*;
 
-    /* Function:
+    /* Program:
      * fn entry(x: Int32) -> () {
      *   if (x >= 0) && (x <= 9) {
      *     Int32 y;
@@ -83,6 +82,150 @@ fn construct_example_prog_ifel() -> cmd::Cmd
 	let entry_decl = fn_dc(fn_prototype, if_el_cmd);
     entry_decl
 }
+
+fn construct_example_prog_overloading() -> cmd::Cmd
+{
+	use aexp::constructor_helper::*;
+	use bexp::constructor_helper::*;
+	use exp::constructor_helper::*;
+	use cmd::constructor_helper::*;
+
+    /* Program:
+     * fn entry() -> () {
+     *   Int32 t0 = 5;
+     *   Int32 t1 = 10;
+     *   Bool  t2 = true;
+     *
+     *   Int32   o1 = overloaded(t0, t1);
+     *   Bool    o2 = overloaded(t0, t2);
+     *   Float32 c3 = overloaded(t2, t1);
+     * };
+     *
+     * fn overloaded(x : Int32, y : Int32) -> Int32 {
+     *   return x+y
+     * };
+     *
+     * fn overloaded(x : Int32, y : Bool) -> Bool {
+     *   while (x > 0) {
+     *     x--;
+     *     y = !y
+     *   };
+     *   return y;
+     * };
+     *
+     * fn overloaded(x : Bool, y : Int32) -> Float32 {
+     *   if x {
+     *     return y;
+     *   } else {
+     *     return y+1;
+     *   }
+     * }
+     */
+
+	// arg list:
+	let var_decl_list = vec![];
+
+	// fn entry() -> ()
+	let fn_prototype = func_general::FnProtoType::new(data_type::DataType::Int32, "entry".to_string(), var_decl_list);
+
+	// Int32 t0 = 5;
+	let t0_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "t0".to_string()));
+	let t0_asg = assign(var_general::VarRef::from_str("t0"), 5i32.to_aexp().to_exp());
+
+	// Int32 t1 = 10;
+	let t1_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "t1".to_string()));
+	let t1_asg = assign(var_general::VarRef::from_str("t1"), 10i32.to_aexp().to_exp());
+
+	// Bool t2 = true;
+	let t2_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Bool, "t2".to_string()));
+	let t2_asg = assign(var_general::VarRef::from_str("t2"), true.to_bexp().to_exp());
+
+	// Int32 o1 = overloaded(t0, t1);
+	let o1_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "o1".to_string()));
+	let o1_asg = assign(var_general::VarRef::from_str("o1"),
+		(aexp::Aexp::FnCall{
+			fc : func_general::FnCall::new("overloaded".to_string(), vec!["t0".to_aexp().to_exp(), "t1".to_aexp().to_exp()])
+		}).to_exp()
+	);
+
+	// Bool o2 = overloaded(t0, t2);
+	let o2_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Bool, "o2".to_string()));
+	let o2_asg = assign(var_general::VarRef::from_str("o2"),
+		(aexp::Aexp::FnCall{
+			fc : func_general::FnCall::new("overloaded".to_string(), vec!["t0".to_aexp().to_exp(), "t2".to_bexp().to_exp()])
+		}).to_exp()
+	);
+
+	// Float32 o3 = overloaded(t2, t1);
+	let o3_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Float32, "o3".to_string()));
+	let o3_asg = assign(var_general::VarRef::from_str("o3"),
+		(aexp::Aexp::FnCall{
+			fc : func_general::FnCall::new("overloaded".to_string(), vec!["t2".to_bexp().to_exp(), "t1".to_aexp().to_exp()])
+		}).to_exp()
+	);
+
+	let seq_entry = seq(t0_dec, seq(t0_asg, seq(t1_dec, seq(t1_asg, seq(t2_dec, seq(t2_asg, seq(o1_dec, seq(o1_asg, seq(o2_dec, seq(o2_asg, seq(o3_dec, o3_asg)))))))))));
+
+	let entry_decl = fn_dc(fn_prototype, seq_entry);
+
+
+	// overloaded(Int32, Int32)
+	// arg list: x: Int32, y: Int32
+	let var_decl_list_o1 = vec![
+		var_general::VarDecl::new(data_type::DataType::Int32, "x".to_string()),
+		var_general::VarDecl::new(data_type::DataType::Int32, "y".to_string()),
+    ];
+
+	// fn overloaded(x: Int32, y: Int32) -> Int32
+	let fn_prototype_o1 = func_general::FnProtoType::new(data_type::DataType::Int32, "overloaded".to_string(), var_decl_list_o1);
+
+	// return x+y
+	let ret_o1 = ret(("x".to_aexp() + "y".to_aexp()).to_exp());
+	let overloaded1_dec = fn_dc(fn_prototype_o1, ret_o1);
+
+
+    // overloaded(Int32, Bool)
+	// arg list: x: Int32, y: Bool
+	let var_decl_list_o2 = vec![
+		var_general::VarDecl::new(data_type::DataType::Int32, "x".to_string()),
+		var_general::VarDecl::new(data_type::DataType::Bool,  "y".to_string()),
+    ];
+
+	// fn overloaded(x: Int32, y: Bool) -> Int32
+	let fn_prototype_o2 = func_general::FnProtoType::new(data_type::DataType::Bool, "overloaded".to_string(), var_decl_list_o2);
+
+	//while x > 0 { x = x - 1; y = y == false }
+	let x_sub = assign(var_general::VarRef::from_str("x"), ("x".to_aexp() - 1i32.to_aexp()).to_exp());
+	let y_not = assign(var_general::VarRef::from_str("y"), ("y".to_bexp().beq(false.to_bexp())).to_exp());
+	let while_o2 = wh_lp("x".to_aexp().gt(0i32.to_aexp()), seq(x_sub, y_not));
+
+    // return y
+	let ret_o2 = ret(("y".to_bexp()).to_exp());
+
+	let overloaded2_dec = fn_dc(fn_prototype_o2, seq(while_o2, ret_o2));
+
+
+    // overloaded(Bool, Int32)
+	// arg list: x: Bool, y: Int32
+	let var_decl_list_o3 = vec![
+		var_general::VarDecl::new(data_type::DataType::Bool,  "x".to_string()),
+		var_general::VarDecl::new(data_type::DataType::Int32, "y".to_string()),
+    ];
+
+	// fn overloaded(x: Bool, y: Int32) -> Float32
+	let fn_prototype_o3 = func_general::FnProtoType::new(data_type::DataType::Float32, "overloaded".to_string(), var_decl_list_o3);
+
+	// if x { return y } else { return y+1 }
+	let ret_o3t  = ret(("y".to_aexp()).to_exp());
+	let ret_o3f  = ret(("y".to_aexp() + 1i32.to_aexp()).to_exp());
+	let if_el_o3 = if_el("x".to_bexp(), ret_o3t, ret_o3f);
+
+	let overloaded3_dec = fn_dc(fn_prototype_o3, if_el_o3);
+
+    // Full program
+    seq(entry_decl, seq(overloaded1_dec, seq(overloaded2_dec, overloaded3_dec)))
+}
+
 
 fn construct_example_prog_bexps() -> cmd::Cmd
 {
@@ -267,7 +410,8 @@ fn main()
 
 	let example_prog_1_name = "is_prime";
 	//let example_prog_1 = construct_example_prog_bexps();
-	let example_prog_1 = construct_example_prog_ifel();
+	//let example_prog_1 = construct_example_prog_ifel();
+	let example_prog_1 = construct_example_prog_overloading();
 	//let example_prog_1 = construct_example_prog_1();
 	let mut example_prog_1_lines : Vec<IndentString> = vec![];
 	example_prog_1.to_indent_lines(&mut example_prog_1_lines);
