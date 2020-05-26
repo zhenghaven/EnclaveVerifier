@@ -28,7 +28,7 @@ fn is_prime(x : i32) -> bool
 		{
 			is_prime = false;
 		}
-		
+
 		test_num = test_num - 1;
 	}
 
@@ -302,7 +302,7 @@ fn construct_example_prog_1() -> cmd::Cmd
 	use cmd::constructor_helper::*;
 
 	// --- function 1 - is_divisible
-	
+
 	//x : i32, factor : i32
 	let var_decl_list_1 = vec![
 		var_general::VarDecl::new(data_type::DataType::Int32, "x".to_string()),
@@ -385,7 +385,7 @@ fn write_byte_code_to_file(code : &cmd::Cmd, prog_name : &str)
         Err(why) => panic!("couldn't create {}: {}", file_path.display(), why),
         Ok(file) => file,
 	};
-	
+
 	let byte_code = match code.to_bytes()
 	{
 		Err(why) => panic!("Couldn't generate byte code for {}. {}", prog_name, why),
@@ -408,16 +408,46 @@ fn main()
 	println!("Example function test result is_prime(x = 211): {}\n", is_prime(211i32));
 	println!("Example function test result is_prime(x = 222): {}\n", is_prime(222i32));
 
+	//---------------
+	// Example prog 1: is_prime
+	//---------------
+
 	let example_prog_1_name = "is_prime";
-	//let example_prog_1 = construct_example_prog_bexps();
-	//let example_prog_1 = construct_example_prog_ifel();
-	let example_prog_1 = construct_example_prog_overloading();
-	//let example_prog_1 = construct_example_prog_1();
+	let example_prog_1 = construct_example_prog_1();
 	let mut example_prog_1_lines : Vec<IndentString> = vec![];
 	example_prog_1.to_indent_lines(&mut example_prog_1_lines);
 	println!("Example program {}:\n{}\n", example_prog_1_name, indent_lines_to_string(&example_prog_1_lines, '\t'));
 
 	write_byte_code_to_file(&example_prog_1, &example_prog_1_name);
 
-	println!("");
+	println!("===================================================\n");
+
+	//---------------
+	// Example prog 2: test for bexps
+	//---------------
+
+	let example_prog_2_name = "test_bexps";
+	let example_prog_2 = construct_example_prog_bexps();
+	//let example_prog_1 = construct_example_prog_ifel();
+	let mut example_prog_2_lines : Vec<IndentString> = vec![];
+	example_prog_2.to_indent_lines(&mut example_prog_2_lines);
+	println!("Example program {}:\n{}\n", example_prog_2_name, indent_lines_to_string(&example_prog_2_lines, '\t'));
+
+	write_byte_code_to_file(&example_prog_2, &example_prog_2_name);
+
+	println!("===================================================\n");
+
+	//---------------
+	// Example prog 3: test for ifelse
+	//---------------
+
+	let example_prog_3_name = "test_ifel";
+	let example_prog_3 = construct_example_prog_ifel();
+	let mut example_prog_3_lines : Vec<IndentString> = vec![];
+	example_prog_3.to_indent_lines(&mut example_prog_3_lines);
+	println!("Example program {}:\n{}\n", example_prog_3_name, indent_lines_to_string(&example_prog_3_lines, '\t'));
+
+	write_byte_code_to_file(&example_prog_3, &example_prog_3_name);
+
+	println!("===================================================\n");
 }
