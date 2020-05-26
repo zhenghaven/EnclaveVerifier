@@ -450,4 +450,18 @@ fn main()
 	write_byte_code_to_file(&example_prog_3, &example_prog_3_name);
 
 	println!("===================================================\n");
+
+	//---------------
+	// Example prog 4: test for function overloading
+	//---------------
+
+	let example_prog_4_name = "test_overloading";
+	let example_prog_4 = construct_example_prog_overloading();
+	let mut example_prog_4_lines : Vec<IndentString> = vec![];
+	example_prog_4.to_indent_lines(&mut example_prog_4_lines);
+	println!("Example program {}:\n{}\n", example_prog_4_name, indent_lines_to_string(&example_prog_4_lines, '\t'));
+
+	write_byte_code_to_file(&example_prog_4, &example_prog_4_name);
+
+	println!("===================================================\n");
 }
