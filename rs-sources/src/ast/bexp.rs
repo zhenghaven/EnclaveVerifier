@@ -14,6 +14,7 @@ pub enum Bexp
 	/* != */     Bneq      {l : Box<Bexp>, r : Box<Bexp>},
 	/* && */     And       {l : Box<Bexp>, r : Box<Bexp>},
 	/* || */     Or        {l : Box<Bexp>, r : Box<Bexp>},
+	/* ! */      Not       {e : Box<Bexp>},
 	/// Equivalent for arithmetic expressions
 	/* == */     Aeq       {l : Box<super::aexp::Aexp>, r : Box<super::aexp::Aexp>},
 	/// Not-equivalent for arithmetic expressions
@@ -37,6 +38,7 @@ impl Bexp
 			Bexp::Bneq{l:_, r:_} => ByteId::Bneq,
 			Bexp::And {l:_, r:_} => ByteId::And,
 			Bexp::Or  {l:_, r:_} => ByteId::Or,
+			Bexp::Not {e:_}      => ByteId::Not,
 			Bexp::Aeq {l:_, r:_} => ByteId::Aeq,
 			Bexp::Aneq{l:_, r:_} => ByteId::Aneq,
 			Bexp::Lt  {l:_, r:_} => ByteId::Lt,
@@ -57,19 +59,20 @@ impl super::Serializible for Bexp
 	///
 	/// # Bexp layout
 	/// ```
-	/// BoolConst:  | type=0 - 1 Byte  | bool - 2 bytes |
-	/// Beq:        | type=1 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
-	/// Bneq:       | type=2 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
-	/// And:        | type=3 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
-	/// Or:         | type=4 - 1 Byte  | Bexp::bytes    | Bexp::bytes   |
-	/// Aeq:        | type=5 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
-	/// Aneq:       | type=6 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
-	/// Lt:         | type=7 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
-	/// Lte:        | type=8 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
-	/// Gt:         | type=9 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
-	/// Gte:        | type=10 - 1 Byte | Aexp::bytes    | Aexp::bytes   |
-	/// Var:        | type=11 - 1 Byte | VarRef::bytes  |
-	/// FnCall:     | type=12 - 1 Byte | FnCall::bytes  |
+	/// BoolConst:  | type=0 -  1 Byte  | bool - 2 bytes |
+	/// Beq:        | type=1 -  1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// Bneq:       | type=2 -  1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// And:        | type=3 -  1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// Or:         | type=4 -  1 Byte  | Bexp::bytes    | Bexp::bytes   |
+	/// Not:        | type=5 -  1 Byte  | Bexp::bytes
+	/// Aeq:        | type=6 -  1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Aneq:       | type=7 -  1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Lt:         | type=8 -  1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Lte:        | type=9 -  1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Gt:         | type=10 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Gte:        | type=11 - 1 Byte  | Aexp::bytes    | Aexp::bytes   |
+	/// Var:        | type=12 - 1 Byte  | VarRef::bytes  |
+	/// FnCall:     | type=13 - 1 Byte  | FnCall::bytes  |
 	/// ```
 	///
 	fn to_bytes(&self) -> Result<Vec<u8>, String>
@@ -105,6 +108,11 @@ impl super::Serializible for Bexp
 			{
 				res.append(&mut (l.to_bytes()?));
 				res.append(&mut (r.to_bytes()?));
+				Result::Ok(res)
+			},
+			Bexp::Not {e} =>
+			{
+				res.append(&mut (e.to_bytes()?));
 				Result::Ok(res)
 			},
 			Bexp::Aeq {l, r} =>
@@ -201,6 +209,12 @@ impl super::Deserializible<Bexp> for Bexp
 
 					Result::Ok((bytes_left_r, parsed_val_l.or(parsed_val_r)))
 				},
+				ByteId::Not =>
+				{
+					let (bytes_left, parsed_val) = Bexp::from_bytes(&bytes[1..])?;
+
+					Result::Ok((bytes_left, parsed_val.not()))
+				},
 				ByteId::Aeq =>
 				{
 					let (bytes_left_l, parsed_val_l) = super::aexp::Aexp::from_bytes(&bytes[1..])?;
@@ -275,6 +289,7 @@ impl fmt::Display for Bexp
 			Bexp::Bneq {l, r}  => write!(f, "({} != {})", l, r),
 			Bexp::And  {l, r}  => write!(f, "({} && {})", l, r),
 			Bexp::Or   {l, r}  => write!(f, "({} || {})", l, r),
+			Bexp::Not  {e}     => write!(f, "(!{})", e),
 			Bexp::Aeq  {l, r}  => write!(f, "({} == {})", l, r),
 			Bexp::Aneq {l, r}  => write!(f, "({} != {})", l, r),
 			Bexp::Lt   {l, r}  => write!(f, "({} < {})",  l, r),
@@ -345,6 +360,11 @@ pub mod constructor_helper
 		{
 			super::Bexp::Or{l : Box::new(self), r : Box::new(r_in)}
 		}
+
+		pub fn not(self) -> super::Bexp
+		{
+			super::Bexp::Not{e : Box::new(self)}
+		}
 	}
 
 	impl super::super::aexp::Aexp
@@ -388,6 +408,7 @@ enum ByteId
 	Bneq,
 	And,
 	Or,
+    Not,
 	Aeq,
 	Aneq,
 	Lt,
@@ -409,14 +430,15 @@ impl ByteId
 			ByteId::Bneq      => 2u8,
 			ByteId::And       => 3u8,
 			ByteId::Or        => 4u8,
-			ByteId::Aeq       => 5u8,
-			ByteId::Aneq      => 6u8,
-			ByteId::Lt        => 7u8,
-			ByteId::Lte       => 8u8,
-			ByteId::Gt        => 9u8,
-			ByteId::Gte       => 10u8,
-			ByteId::Var       => 11u8,
-			ByteId::FnCall    => 12u8,
+			ByteId::Not       => 5u8,
+			ByteId::Aeq       => 6u8,
+			ByteId::Aneq      => 7u8,
+			ByteId::Lt        => 8u8,
+			ByteId::Lte       => 9u8,
+			ByteId::Gt        => 10u8,
+			ByteId::Gte       => 11u8,
+			ByteId::Var       => 12u8,
+			ByteId::FnCall    => 13u8,
 		}
 	}
 
@@ -429,15 +451,16 @@ impl ByteId
 			2u8 => Result::Ok(ByteId::Bneq),
 			3u8 => Result::Ok(ByteId::And),
 			4u8 => Result::Ok(ByteId::Or),
-			5u8 => Result::Ok(ByteId::Aeq),
-			6u8 => Result::Ok(ByteId::Aneq),
-			7u8 => Result::Ok(ByteId::Lt),
-			8u8 => Result::Ok(ByteId::Lte),
-			9u8 => Result::Ok(ByteId::Gt),
-			10u8 => Result::Ok(ByteId::Gte),
-			11u8 => Result::Ok(ByteId::Var),
-			12u8 => Result::Ok(ByteId::FnCall),
-			_   => Result::Err(format!("{}", "Unrecognized type ID from byte for Aexp."))
+			5u8 => Result::Ok(ByteId::Not),
+			6u8 => Result::Ok(ByteId::Aeq),
+			7u8 => Result::Ok(ByteId::Aneq),
+			8u8 => Result::Ok(ByteId::Lt),
+			9u8 => Result::Ok(ByteId::Lte),
+			10u8 => Result::Ok(ByteId::Gt),
+			11u8 => Result::Ok(ByteId::Gte),
+			12u8 => Result::Ok(ByteId::Var),
+			13u8 => Result::Ok(ByteId::FnCall),
+			_   => Result::Err(format!("{}", "Unrecognized type ID from byte for Bexp."))
 		}
 	}
 }

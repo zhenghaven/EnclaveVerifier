@@ -87,6 +87,11 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
             }
         },
 
+        // Fn-Call
+        ast::cmd::Cmd::FnCall{fc} => {
+            Err(format!("{}", "Error: fn call not yet supported as cmd"))
+        }
+
         // If-Else
         ast::cmd::Cmd::IfElse{cond, tr_cmd, fa_cmd} => {
             /* Note: I need to make sure that the scope is preserved.
@@ -116,8 +121,24 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
         },
 
         // While loop
-        /*ast::cmd::Cmd::WhileLoop{cond, lp_cmd} => Ok(var_types),
-            Result::Err("Error: not implemented yet". to_string()),*/
+        ast::cmd::Cmd::WhileLoop{cond, lp_cmd} => {
+            let cond_res = match check_bexpr_type(&cond, &var_types, fn_types) {
+                Ok(cond_type) => cond_type,
+                Err(cond_why) => panic!("{}", cond_why),
+            };
+            if cond_res != ast::data_type::DataType::Bool {
+                Err(format!("{}", "Error: use of expression () as condition for while, but it's not a boolean."))
+            } else {
+                /* FIXME: This isn't perfect. This will tell if you the types are correct
+                 * but just because this passes doesn't mean it is well-formed. For example
+                 * "while(true) { skip }" will type-check but isn't well-formed since it will
+                 * never terminate. */
+                match iterate_through_ast(*lp_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                    Ok(_)    => Ok(var_types),
+                    Err(why) => panic!("{}", why),
+                }
+            }
+        },
 
         //Seq
         ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
@@ -145,11 +166,12 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              *    make sure the fn's commands are well-typed.
              * 3. When all is done, we need to make sure any
              *    return's type matches fn's type. (can probably be done in return cmd instead) */
+            let mut var_types_clone = var_types.clone();
             for var_decl in &((*prototype).var_decl_list) {
-                var_types.push(VarTypePair(var_decl.name.clone(), var_decl.var_type));
+                var_types_clone.push(VarTypePair(var_decl.name.clone(), var_decl.var_type));
             }
 
-            match iterate_through_ast(*fn_cmd, var_types.clone(), fn_types, (*prototype).ret_type) {
+            match iterate_through_ast(*fn_cmd, var_types_clone, fn_types, (*prototype).ret_type) {
                 Ok(_vt)    => Ok(var_types),
                 Err(why) => panic!("{}", why)
             }
@@ -162,8 +184,12 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                     let res = check_aexpr_type(&e, &var_types, fn_types);
                     if res.is_ok() {
                         if res == Ok(curr_fn_type) {
+                            // If return type matches func type, it type checks.
                             Ok(var_types)
-                        } else {
+                        } else if curr_fn_type == ast::data_type::DataType::Float32 && res == Ok(ast::data_type::DataType::Int32) {
+                            // If return type = Int32 and func_type = Float32, type check is OK.
+                            Ok(var_types)
+                        }else {
                             Err(format!("{}", "Error: 'return ()' does not have same type as function type."))
                         }
                     } else {
@@ -184,7 +210,6 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                 },
             }
         },
-        _ => Err(format!("{}", "Error: cmd not yet implemented"))
     }
 }
 
@@ -199,7 +224,29 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
         // Bool const (true/false)
         ast::bexp::Bexp::BoolConst{v : _} => Ok(ast::data_type::DataType::Bool),
 
-        // Bool comparison
+        // Unary bool comparison
+        ast::bexp::Bexp::Not{e} => {
+            let e_type = check_bexpr_type(e, var_types, fn_types);
+            if e_type.is_ok() {
+                if e_type != Ok(ast::data_type::DataType::Bool) {
+                    // e_type is incorrect type.
+                    panic!("Error: expression {} is not of type bool, but used as such in bool comparison.", e);
+                } else {
+                    // e_type is of Bool type. Therefore entire expr type is Bool.
+                    Ok(ast::data_type::DataType::Bool)
+                }
+            } else {
+                //If the check created an error, print out why.
+                match e_type {
+                    Err(why) => panic!("{}", why),
+                    _         => (),
+                };
+                assert!(false);//If we are in this else, we will never reach here.
+                Err(format!("{}", "Can't reach here."))
+            }
+        },
+
+        // N-ary bool comparison
         ast::bexp::Bexp::Beq{l, r} | ast::bexp::Bexp::Bneq{l, r} | ast::bexp::Bexp::And{l, r} | ast::bexp::Bexp::Or{l, r} => {
             let l_type = check_bexpr_type(l, var_types, fn_types);
             let r_type = check_bexpr_type(r, var_types, fn_types);
@@ -434,8 +481,8 @@ pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIde
         },
         ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
             // Check sub-sequences to see if any function declarations.
-            gather_fn_types(&(*fst_cmd), fn_types);
-            gather_fn_types(&(*snd_cmd), fn_types);
+            gather_fn_types(fst_cmd, fn_types);
+            gather_fn_types(snd_cmd, fn_types);
             ()
         },
         // In every other case, do nothing (since no possible function declaration).
