@@ -224,7 +224,29 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
         // Bool const (true/false)
         ast::bexp::Bexp::BoolConst{v : _} => Ok(ast::data_type::DataType::Bool),
 
-        // Bool comparison
+        // Unary bool comparison
+        ast::bexp::Bexp::Not{e} => {
+            let e_type = check_bexpr_type(e, var_types, fn_types);
+            if e_type.is_ok() {
+                if e_type != Ok(ast::data_type::DataType::Bool) {
+                    // e_type is incorrect type.
+                    panic!("Error: expression {} is not of type bool, but used as such in bool comparison.", e);
+                } else {
+                    // e_type is of Bool type. Therefore entire expr type is Bool.
+                    Ok(ast::data_type::DataType::Bool)
+                }
+            } else {
+                //If the check created an error, print out why.
+                match e_type {
+                    Err(why) => panic!("{}", why),
+                    _         => (),
+                };
+                assert!(false);//If we are in this else, we will never reach here.
+                Err(format!("{}", "Can't reach here."))
+            }
+        },
+
+        // N-ary bool comparison
         ast::bexp::Bexp::Beq{l, r} | ast::bexp::Bexp::Bneq{l, r} | ast::bexp::Bexp::And{l, r} | ast::bexp::Bexp::Or{l, r} => {
             let l_type = check_bexpr_type(l, var_types, fn_types);
             let r_type = check_bexpr_type(r, var_types, fn_types);
@@ -459,8 +481,8 @@ pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIde
         },
         ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
             // Check sub-sequences to see if any function declarations.
-            gather_fn_types(&(*fst_cmd), fn_types);
-            gather_fn_types(&(*snd_cmd), fn_types);
+            gather_fn_types(fst_cmd, fn_types);
+            gather_fn_types(snd_cmd, fn_types);
             ()
         },
         // In every other case, do nothing (since no possible function declaration).

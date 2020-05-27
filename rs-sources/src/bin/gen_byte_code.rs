@@ -196,7 +196,7 @@ fn construct_example_prog_overloading() -> cmd::Cmd
 
 	//while x > 0 { x = x - 1; y = y == false }
 	let x_sub = assign(var_general::VarRef::from_str("x"), ("x".to_aexp() - 1i32.to_aexp()).to_exp());
-	let y_not = assign(var_general::VarRef::from_str("y"), ("y".to_bexp().beq(false.to_bexp())).to_exp());
+	let y_not = assign(var_general::VarRef::from_str("y"), ("y".to_bexp().not()).to_exp());
 	let while_o2 = wh_lp("x".to_aexp().gt(0i32.to_aexp()), seq(x_sub, y_not));
 
     // return y
