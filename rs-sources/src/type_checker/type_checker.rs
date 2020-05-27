@@ -89,7 +89,35 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
 
         // Fn-Call
         ast::cmd::Cmd::FnCall{fc} => {
-            Err(format!("{}", "Error: fn call not yet supported as cmd"))
+            /* Note: we support calling functions and not necessarily
+             * assigning them to variables (even if they do not have void
+             * return type). Thus, here I just check to make sure a matching
+             * function declaration exists */
+            let mut fncall_arg_types : std::vec::Vec<ast::data_type::DataType> = vec![];
+            for arg in &fc.exp_list {
+                let arg_res = match arg {
+                    ast::exp::Exp::A{e} => {
+                        check_aexpr_type(&e, &var_types, fn_types)
+                    },
+                    ast::exp::Exp::B{e} => {
+                        check_bexpr_type(&e, &var_types, fn_types)
+                    },
+                };
+                let arg_type : ast::data_type::DataType;
+                arg_type = match arg_res {
+                    Ok(etype) => etype,
+                    Err(why)  => panic!("{}", why),
+                };
+                fncall_arg_types.push(arg_type);
+            };
+
+            // Check to see if a matching FnDecl exists.
+            let (found, _) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
+            if found {
+                Ok(var_types)
+            } else {
+                Err(format!("{}", "Error: function call (), but no matching declaration."))
+            }
         }
 
         // If-Else
