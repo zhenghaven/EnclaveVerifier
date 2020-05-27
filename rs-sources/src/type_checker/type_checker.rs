@@ -5,9 +5,10 @@ use std::vec::Vec;
 
 /* Members of VarTypePair:
  * 1) Variable name
- * 2) Type of variable */
+ * 2) Type of variable
+ * 3) Has variable been set yet */
 #[derive(Clone)]
-pub struct VarTypePair(String, ast::data_type::DataType);
+pub struct VarTypePair(String, ast::data_type::DataType, bool);
 
 
 /* Members of FuncIdentifierTuple:
@@ -38,7 +39,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
             if (*var_types).iter().any(|i| i.0 == var.name) {
                 panic!("Error: variable {} was declared more than once.", var.name)
             } else {
-                var_types.push(VarTypePair(var.name, var.var_type));
+                var_types.push(VarTypePair(var.name, var.var_type, false));
                 Ok(var_types)
             }
         },
@@ -51,7 +52,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              *   a. Already declared.
              *   b. Type(LHS) = Type(RHS). */
 
-            let (is_prev_decl, decl_type) = get_var_type(&var_types, &(*var).name);
+            let (is_prev_decl, decl_type, set) = get_var_type(&var_types, &(*var).name);
 
             if is_prev_decl == false {
                 Err(format!("{}", "Error: an assign uses variable () which has not yet been declared."))
@@ -196,7 +197,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              *    return's type matches fn's type. (can probably be done in return cmd instead) */
             let mut var_types_clone = var_types.clone();
             for var_decl in &((*prototype).var_decl_list) {
-                var_types_clone.push(VarTypePair(var_decl.name.clone(), var_decl.var_type));
+                var_types_clone.push(VarTypePair(var_decl.name.clone(), var_decl.var_type, true));
             }
 
             match iterate_through_ast(*fn_cmd, var_types_clone, fn_types, (*prototype).ret_type) {
@@ -338,11 +339,13 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
         // Variable
         ast::bexp::Bexp::Var{v} => {
             //Check to make sure variable is of type Float32 or Int32.
-            let (is_prev_decl, decl_type) = get_var_type(var_types, &(*v).name);
-            if is_prev_decl {
-                Ok(decl_type)
-            } else {
+            let (is_prev_decl, decl_type, set) = get_var_type(var_types, &(*v).name);
+            if !is_prev_decl {
                 panic!("Error: use of variable {} before declared.", (*v).name)
+            } else if !set {
+                panic!("Error: use of variable {} before given value.", (*v).name)
+            } else {
+                Ok(decl_type)
             }
         },
         ast::bexp::Bexp::FnCall{fc} => {
@@ -432,11 +435,13 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
         // Variable
         ast::aexp::Aexp::Var{v} => {
             //Check to make sure variable is of type Float32 or Int32.
-            let (is_prev_decl, decl_type) = get_var_type(var_types, &(*v).name);
-            if is_prev_decl {
-                Ok(decl_type)
-            } else {
+            let (is_prev_decl, decl_type, set) = get_var_type(var_types, &(*v).name);
+            if !is_prev_decl {
                 panic!("Error: use of variable {} before declared.", (*v).name)
+            } else if !set {
+                panic!("Error: use of variable {} before given value.", (*v).name)
+            } else {
+                Ok(decl_type)
             }
         },
 
@@ -481,17 +486,19 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
 
 /* This function helps us know if a variable has already been defined
  * and if it was, what its type was. */
-fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -> (bool, ast::data_type::DataType) {
+fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -> (bool, ast::data_type::DataType, bool) {
     let mut var_type = ast::data_type::DataType::Void;
     let mut found = false;
+    let mut set = false;
     for pair in var_types {
         if pair.0 == *var_name {
             found = true;
+            set = pair.2;
             var_type = pair.1;
             break
         }
     }
-    (found, var_type)
+    (found, var_type, set)
 }
 
 pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIdentifierTuple>) -> () {
