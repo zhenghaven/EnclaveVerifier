@@ -114,6 +114,7 @@ impl fmt::Display for FnProtoType
 	}
 }
 
+#[derive(Clone)]
 pub struct FnCall
 {
 	pub name : String,

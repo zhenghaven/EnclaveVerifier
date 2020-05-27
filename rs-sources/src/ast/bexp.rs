@@ -5,6 +5,7 @@ use std::string::String;
 
 use std::boxed::Box;
 
+#[derive(Clone)]
 pub enum Bexp
 {
 	/* T / F */  BoolConst {v :  bool},

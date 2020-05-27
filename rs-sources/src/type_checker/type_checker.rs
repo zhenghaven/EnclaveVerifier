@@ -25,7 +25,6 @@ pub struct FuncIdentifierTuple(pub String, pub ast::data_type::DataType, pub Vec
 pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarTypePair>,
                            fn_types: &std::vec::Vec<FuncIdentifierTuple>, curr_fn_type: ast::data_type::DataType)
                            -> Result<std::vec::Vec<VarTypePair>, String> {
-    //println!("cmd: {}", cmd);
     match cmd {
         // Skip
         ast::cmd::Cmd::Skip => Ok(var_types),
@@ -37,7 +36,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
             //3. If not, then add to var_types vector and pass to next command.
             let var = *d;
             if (*var_types).iter().any(|i| i.0 == var.name) {
-                panic!("Error: variable {} was declared more than once.", var.name)
+                Err(format!("Error: variable '{}' was declared more than once.", var))
             } else {
                 var_types.push(VarTypePair(var.name, var.var_type, false));
                 Ok(var_types)
@@ -52,38 +51,37 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              *   a. Already declared.
              *   b. Type(LHS) = Type(RHS). */
 
-            let (is_prev_decl, decl_type, set) = get_var_type(&var_types, &(*var).name);
+            let (is_prev_decl, decl_type, _set) = get_var_type(&var_types, &(*var).name);
 
             if is_prev_decl == false {
-                Err(format!("{}", "Error: an assign uses variable () which has not yet been declared."))
+                Err(format!("Error: an assign uses variable '{}' which has not yet been declared.", var))
             } else {
-                match *e {
-                    ast::exp::Exp::A{e} => {
-                        let res = check_aexpr_type(&e, &var_types, fn_types);
-                        if res.is_ok() {
-                            if res == Ok(decl_type) {
-                                Ok(var_types)
-                            } else {
-                                Err(format!("{}", "Error: variable being assigned to does not have same type as RHS type."))
+                let res : Result<ast::data_type::DataType, String>;
+                match *e.clone() {
+                    ast::exp::Exp::A{e:ae} => {
+                        res = check_aexpr_type(&ae, &var_types, fn_types);
+                    },
+                    ast::exp::Exp::B{e:be} => {
+                        res = check_bexpr_type(&be, &var_types, fn_types);
+                    },
+                }
+
+                match res {
+                    Ok(etype) => {
+                        if etype == decl_type {
+                            // Make sure to set var's pair to show it has been set.
+                            for var_info in &mut var_types {
+                                if var_info.0 == (*var).name {
+                                    var_info.2 = true;
+                                }
                             }
+                            // Then return updated var_types.
+                            Ok(var_types)
                         } else {
-                            Err(format!("{}", "Error: assign failed on not well-typed bexp."))
-                            //panic!("Error: bexpr {} checked is not well typed.", e);
+                            Err(format!("Error: variable '{}' being assigned to does not have same type as RHS type '{}'.", var, e))
                         }
                     },
-                    ast::exp::Exp::B{e} => {
-                        let res = check_bexpr_type(&e, &var_types, fn_types);
-                        if res.is_ok() {
-                            if res == Ok(decl_type) {
-                                Ok(var_types)
-                            } else {
-                                Err(format!("{}", "Error: variable being assigned to does not have same type as RHS type."))
-                            }
-                        } else {
-                            Err(format!("{}", "Error: assign failed on not well-typed bexp."))
-                            //panic!("Error: bexpr {} checked is not well typed.", e);
-                        }
-                    },
+                    Err(why) => Err(why)
                 }
             }
         },
@@ -95,6 +93,8 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              * return type). Thus, here I just check to make sure a matching
              * function declaration exists */
             let mut fncall_arg_types : std::vec::Vec<ast::data_type::DataType> = vec![];
+            let mut err = false;
+            let mut err_string = "".to_string();
             for arg in &fc.exp_list {
                 let arg_res = match arg {
                     ast::exp::Exp::A{e} => {
@@ -107,17 +107,25 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                 let arg_type : ast::data_type::DataType;
                 arg_type = match arg_res {
                     Ok(etype) => etype,
-                    Err(why)  => panic!("{}", why),
+                    Err(why)  => {
+                        err = true;
+                        err_string = why;
+                        break;
+                    },
                 };
                 fncall_arg_types.push(arg_type);
             };
 
-            // Check to see if a matching FnDecl exists.
-            let (found, _) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
-            if found {
-                Ok(var_types)
+            if err {
+                Err(err_string)
             } else {
-                Err(format!("{}", "Error: function call (), but no matching declaration."))
+                // Check to see if a matching FnDecl exists.
+                let (found, _) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
+                if found {
+                    Ok(var_types)
+                } else {
+                    Err(format!("Error: function call {}, but no matching declaration", fc.name))
+                }
             }
         }
 
@@ -130,58 +138,73 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              * It's costly, but I don't think there's a better way since I can't
              * use references (if tr_cmd alters the reference, fa_cmd shouldn't
              * see that change). For now this works, see if alternative in future. */
-            let cond_res = match check_bexpr_type(&cond, &var_types, fn_types) {
-                Ok(cond_type) => cond_type,
-                Err(cond_why) => panic!("{}", cond_why),
-            };
-            if cond_res != ast::data_type::DataType::Bool {
-                Err(format!("{}", "Error: use of expression () as condition for if-else, but it's not a boolean."))
-            } else {
-                match iterate_through_ast(*tr_cmd, var_types.clone(), fn_types, curr_fn_type) {
-                    Ok(_)      => (),
-                    Err(why_t) => panic!("{}", why_t),
-                };
-                match iterate_through_ast(*fa_cmd, var_types.clone(), fn_types, curr_fn_type) {
-                    Ok(_)      => (),
-                    Err(why_f) => panic!("{}", why_f),
-                };
-                Ok(var_types)
+            match check_bexpr_type(&cond, &var_types, fn_types) {
+                Ok(ast::data_type::DataType::Bool) => {
+                    let mut t_has_err = false;
+                    let mut f_has_err = false;
+                    let mut t_err = "".to_string();
+                    let mut f_err = "".to_string();
+                    match iterate_through_ast(*tr_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                        Ok(_)      => (),
+                        Err(why_t) => {
+                            t_has_err = true;
+                            t_err = why_t;
+                        },
+                    };
+                    match iterate_through_ast(*fa_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                        Ok(_)      => (),
+                        Err(why_f) => {
+                            f_has_err = true;
+                            f_err = why_f;
+                        },
+                    };
+
+                    if t_has_err {
+                        Err(t_err)
+                    } else if f_has_err {
+                        Err(f_err)
+                    } else {
+                        Ok(var_types)
+                    }
+                },
+                Ok(_) => Err(format!("Error: use of expression '{}' as condition for if-else, but it's not a boolean.", cond)),
+                Err(cond_why) => Err(cond_why),
             }
         },
 
         // While loop
         ast::cmd::Cmd::WhileLoop{cond, lp_cmd} => {
-            let cond_res = match check_bexpr_type(&cond, &var_types, fn_types) {
-                Ok(cond_type) => cond_type,
-                Err(cond_why) => panic!("{}", cond_why),
-            };
-            if cond_res != ast::data_type::DataType::Bool {
-                Err(format!("{}", "Error: use of expression () as condition for while, but it's not a boolean."))
-            } else {
-                /* FIXME: This isn't perfect. This will tell if you the types are correct
-                 * but just because this passes doesn't mean it is well-formed. For example
-                 * "while(true) { skip }" will type-check but isn't well-formed since it will
-                 * never terminate. */
-                match iterate_through_ast(*lp_cmd, var_types.clone(), fn_types, curr_fn_type) {
-                    Ok(_)    => Ok(var_types),
-                    Err(why) => panic!("{}", why),
-                }
+            match check_bexpr_type(&cond, &var_types, fn_types) {
+                Ok(ast::data_type::DataType::Bool) => {
+                    /* FIXME: This isn't perfect. This will tell if you the types are correct
+                     * but just because this passes doesn't mean it is well-formed. For example
+                     * "while(true) { skip }" will type-check but isn't well-formed since it will
+                     * never terminate. */
+                    match iterate_through_ast(*lp_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                        Ok(_)    => Ok(var_types),
+                        Err(why) => Err(why),
+                    }
+                },
+                Ok(_) => Err(format!("Error: use of expression '{}' as condition for while, but it's not a boolean.", cond)),
+                Err(cond_why) => Err(cond_why),
             }
         },
 
         //Seq
         ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
-            /* Note: We have to make sure we pass modified var_types from
-             * first command result into handling second command. */
-            let fst_res = iterate_through_ast(*fst_cmd, var_types, fn_types, curr_fn_type);
-            let var_types_1 = match fst_res {
-                Ok(vt1)   => vt1,
-                Err(why1) => panic!("{}", why1)
-            };
-            let snd_res = iterate_through_ast(*snd_cmd, var_types_1, fn_types, curr_fn_type);
-            match snd_res {
-                Ok(vt2)  => Ok(vt2),
-                Err(why2)=> panic!("{}", why2)
+            /* 1. Check to make sure type checker passes on fst_cmd.
+             * 2. Check to make sure type checker passed on snd_cmd.
+             * Note: We have to make sure we pass modified var_types
+             * from first command result into handling second command. */
+            match iterate_through_ast(*fst_cmd, var_types, fn_types, curr_fn_type) {
+                Ok(var_types_1)   => {
+                    let snd_res = iterate_through_ast(*snd_cmd, var_types_1, fn_types, curr_fn_type);
+                    match snd_res {
+                        Ok(vt2)  => Ok(vt2),
+                        Err(why2)=> Err(why2),
+                    }
+                },
+                Err(why1) => Err(why1),
             }
         },
 
@@ -202,41 +225,36 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
 
             match iterate_through_ast(*fn_cmd, var_types_clone, fn_types, (*prototype).ret_type) {
                 Ok(_vt)    => Ok(var_types),
-                Err(why) => panic!("{}", why)
+                Err(why)   => Err(why),
             }
         },
 
         // Return
         ast::cmd::Cmd::Return{e} => {
-            match *e {
+            /* 1. Find type of expression (e) being returned.
+             * 2. Make sure e's type matches the current
+             *    function's return type. */
+            let res = match *e.clone() {
                 ast::exp::Exp::A{e} => {
-                    let res = check_aexpr_type(&e, &var_types, fn_types);
-                    if res.is_ok() {
-                        if res == Ok(curr_fn_type) {
-                            // If return type matches func type, it type checks.
-                            Ok(var_types)
-                        } else if curr_fn_type == ast::data_type::DataType::Float32 && res == Ok(ast::data_type::DataType::Int32) {
-                            // If return type = Int32 and func_type = Float32, type check is OK.
-                            Ok(var_types)
-                        }else {
-                            Err(format!("{}", "Error: 'return ()' does not have same type as function type."))
-                        }
-                    } else {
-                        Err(format!("{}", "Error: 'return ()' is not well-formed."))
-                    }
+                    check_aexpr_type(&e, &var_types, fn_types)
                 },
                 ast::exp::Exp::B{e} => {
-                    let res = check_bexpr_type(&e, &var_types, fn_types);
-                    if res.is_ok() {
-                        if res == Ok(curr_fn_type) {
-                            Ok(var_types)
-                        } else {
-                            Err(format!("{}", "Error: 'return ()' does not have same type as function type."))
-                        }
+                    check_bexpr_type(&e, &var_types, fn_types)
+                },
+            };
+            match res {
+                Ok(ret_type) => {
+                    if ret_type == curr_fn_type {
+                        // If return type matches func type, it type checks.
+                        Ok(var_types)
+                    } else if curr_fn_type == ast::data_type::DataType::Float32 && ret_type == ast::data_type::DataType::Int32 {
+                        // If return type = Int32 and func_type = Float32, type check is OK.
+                        Ok(var_types)
                     } else {
-                        Err(format!("{}", "Error: 'return ()' is not well-formed."))
+                        Err(format!("Error: 'return {}' does not have same type as function type.", e))
                     }
                 },
+                Err(why) => Err(why),
             }
         },
     }
@@ -255,23 +273,12 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
 
         // Unary bool comparison
         ast::bexp::Bexp::Not{e} => {
-            let e_type = check_bexpr_type(e, var_types, fn_types);
-            if e_type.is_ok() {
-                if e_type != Ok(ast::data_type::DataType::Bool) {
-                    // e_type is incorrect type.
-                    panic!("Error: expression {} is not of type bool, but used as such in bool comparison.", e);
-                } else {
-                    // e_type is of Bool type. Therefore entire expr type is Bool.
+            match check_bexpr_type(e, var_types, fn_types) {
+                Ok(ast::data_type::DataType::Bool) => {
                     Ok(ast::data_type::DataType::Bool)
-                }
-            } else {
-                //If the check created an error, print out why.
-                match e_type {
-                    Err(why) => panic!("{}", why),
-                    _         => (),
-                };
-                assert!(false);//If we are in this else, we will never reach here.
-                Err(format!("{}", "Can't reach here."))
+                },
+                Ok(_) => Err(format!("Error: expression '{}' is not of type bool, but used as such with not operator.", e)),
+                Err(why) => Err(why),
             }
         },
 
@@ -279,29 +286,24 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
         ast::bexp::Bexp::Beq{l, r} | ast::bexp::Bexp::Bneq{l, r} | ast::bexp::Bexp::And{l, r} | ast::bexp::Bexp::Or{l, r} => {
             let l_type = check_bexpr_type(l, var_types, fn_types);
             let r_type = check_bexpr_type(r, var_types, fn_types);
+
             if l_type.is_ok() && r_type.is_ok() {
                 if l_type != Ok(ast::data_type::DataType::Bool) {
                     // l_type is incorrect type.
-                    panic!("Error: expression {} is not of type bool, but used as such in bool comparison.", l);
+                    Err(format!("Error: expression '{}' is not of type bool, but used as such in bool comparison.", l))
                 } else if r_type != Ok(ast::data_type::DataType::Bool)  {
                     // r_type is incorrect type.
-                    panic!("Error: expression {} is not of type bool, but used as such in bool comparison.", r);
+                    Err(format!("Error: expression '{}' is not of type bool, but used as such in bool comparison.", r))
                 } else {
                     // l_type and r_type are both of Bool type. Therefore entire expr type is Bool.
                     Ok(ast::data_type::DataType::Bool)
                 }
+            } else if !l_type.is_ok() {
+                // If we reach here, l_type equals some error message.
+                l_type
             } else {
-                //If one of the checks created an error, print out why.
-                match l_type {
-                    Err(whyl) => panic!("{}", whyl),
-                    _         => (),
-                };
-                match r_type {
-                    Err(why2) => panic!("{}", why2),
-                    _         => (),
-                };
-                assert!(false);//If we are in this else, we will never reach here.
-                Err(format!("{}", "Can't reach here."))
+                // If we reach here, r_type equals some error message.
+                r_type
             }
         },
 
@@ -310,29 +312,24 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
         ast::bexp::Bexp::Lte{l, r} | ast::bexp::Bexp::Gt{l, r}   | ast::bexp::Bexp::Gte{l, r}  => {
             let l_type = check_aexpr_type(l, var_types, fn_types);
             let r_type = check_aexpr_type(r, var_types, fn_types);
+
             if l_type.is_ok() && r_type.is_ok() {
                 if l_type != Ok(ast::data_type::DataType::Int32) && l_type != Ok(ast::data_type::DataType::Float32) {
                     // l_type is incorrect type.
-                    panic!("Error: expression {} is not of type Int32/Float32, but used as such in arith comparison.", l);
+                    Err(format!("Error: expression '{}' is not of type Int32/Float32, but used as such in arith comparison.", l))
                 } else if r_type != Ok(ast::data_type::DataType::Int32) && r_type != Ok(ast::data_type::DataType::Float32) {
                     // r_type is incorrect type.
-                    panic!("Error: expression {} is not of type Int32/Float32, but used as such in arith comparison.", r);
+                    Err(format!("Error: expression '{}' is not of type Int32/Float32, but used as such in arith comparison.", r))
                 } else {
                     // l_type and r_type are both of Int32/Float32 type. Therefore entire expr type is Bool.
                     Ok(ast::data_type::DataType::Bool)
                 }
+            } else if !l_type.is_ok() {
+                // If we reach here, l_type equals some error message.
+                l_type
             } else {
-                //If one of the checks created an error, print out why.
-                match l_type {
-                    Err(whyl) => panic!("{}", whyl),
-                    _         => (),
-                };
-                match r_type {
-                    Err(why2) => panic!("{}", why2),
-                    _         => (),
-                };
-                assert!(false);//If we are in this else, we will never reach here.
-                Err(format!("{}", "Can't reach here."))
+                // If we reach here, r_type equals some error message.
+                r_type
             }
         },
 
@@ -341,9 +338,9 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
             //Check to make sure variable is of type Float32 or Int32.
             let (is_prev_decl, decl_type, set) = get_var_type(var_types, &(*v).name);
             if !is_prev_decl {
-                panic!("Error: use of variable {} before declared.", (*v).name)
+                Err(format!("Error: use of variable {} before declared.", v))
             } else if !set {
-                panic!("Error: use of variable {} before given value.", (*v).name)
+                Err(format!("Error: use of variable {} before given value.", v))
             } else {
                 Ok(decl_type)
             }
@@ -354,6 +351,8 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
              * so, return function type. */
 
             // Iterate over FnCall's arguments and create a vector holding their types.
+            let mut arg_has_err = false;
+            let mut arg_err = "".to_string();
             let mut fncall_arg_types : std::vec::Vec<ast::data_type::DataType> = vec![];
             for arg in &fc.exp_list {
                 let arg_type : ast::data_type::DataType;
@@ -367,20 +366,28 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
                 };
                 arg_type = match arg_res {
                     Ok(etype) => etype,
-                    Err(why)  => panic!("{}", why),
+                    Err(why)  => {
+                        arg_has_err = true;
+                        arg_err = why;
+                        break;
+                    },
                 };
                 fncall_arg_types.push(arg_type);
             };
 
-            /* Check to see if a function declaration exists with name
-             * fc.name and matching argument type list (compared to
-             * fncall_arg_types). If so, return the type returned
-             * by that function. */
-            let (found, fn_ret_type) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
-            if found {
-                Ok(fn_ret_type)
+            if arg_has_err {
+                Err(arg_err)
             } else {
-                Err(format!("{}", "Error: function call (), but no matching declaration."))
+                /* Check to see if a function declaration exists with name
+                 * fc.name and matching argument type list (compared to
+                 * fncall_arg_types). If so, return the type returned
+                 * by that function. */
+                let (found, fn_ret_type) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
+                if found {
+                    Ok(fn_ret_type)
+                } else {
+                    Err(format!("Error: function call '{}', but no matching declaration.", fc))
+                }
             }
         },
     }
@@ -403,10 +410,10 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
             if l_type.is_ok() && r_type.is_ok() {
                 if l_type != Ok(ast::data_type::DataType::Int32) && l_type != Ok(ast::data_type::DataType::Float32) {
                     // l_type is incorrect type.
-                    panic!("Error: expression {} is not an int/flo type, but used as such in arith operations.", l);
+                    Err(format!("Error: expression '{}' is not an Int32/Float32 type, but used as such in arith operations.", l))
                 } else if r_type != Ok(ast::data_type::DataType::Int32) && r_type != Ok(ast::data_type::DataType::Float32) {
                     // r_type is incorrect type.
-                    panic!("Error: expression {} is not an int/flo type, but used as such in arith operations.", r);
+                    Err(format!("Error: expression '{}' is not an Int32/Float32 type, but used as such in arith operations.", r))
                 } else {
                     /* l_type and r_type are either Int32 or Float32.
                      * If both are Int32, then expr type is Int32.
@@ -417,18 +424,12 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
                         Ok(ast::data_type::DataType::Float32)
                     }
                 }
+            } else if !l_type.is_ok() {
+                // If we reach here, l_type equals some error message.
+                l_type
             } else {
-                //If one of the checks created an error, print out why.
-                match l_type {
-                    Err(whyl) => panic!("{}", whyl),
-                    _         => (),
-                };
-                match r_type {
-                    Err(why2) => panic!("{}", why2),
-                    _         => (),
-                };
-                assert!(false);//If we are in this else, we will never reach here.
-                Err(format!("{}", "Can't reach here."))
+                // If we reach here, r_type equals some error message.
+                r_type
             }
         },
 
@@ -437,9 +438,9 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
             //Check to make sure variable is of type Float32 or Int32.
             let (is_prev_decl, decl_type, set) = get_var_type(var_types, &(*v).name);
             if !is_prev_decl {
-                panic!("Error: use of variable {} before declared.", (*v).name)
+                Err(format!("Error: use of variable '{}' before declared.", v))
             } else if !set {
-                panic!("Error: use of variable {} before given value.", (*v).name)
+                Err(format!("Error: use of variable '{}' before given value.", v))
             } else {
                 Ok(decl_type)
             }
@@ -452,6 +453,8 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
              * so, return function type. */
 
             // Iterate over FnCall's arguments and create a vector holding their types.
+            let mut arg_has_err = false;
+            let mut arg_err = "".to_string();
             let mut fncall_arg_types : std::vec::Vec<ast::data_type::DataType> = vec![];
             for arg in &fc.exp_list {
                 let arg_type : ast::data_type::DataType;
@@ -465,20 +468,28 @@ fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePai
                 };
                 arg_type = match arg_res {
                     Ok(etype) => etype,
-                    Err(why)  => panic!("{}", why),
+                    Err(why)  => {
+                        arg_has_err = true;
+                        arg_err = why;
+                        break;
+                    },
                 };
                 fncall_arg_types.push(arg_type);
             };
 
-            /* Check to see if a function declaration exists with name
-             * fc.name and matching argument type list (compared to
-             * fncall_arg_types). If so, return the type returned
-             * by that function. */
-            let (found, fn_ret_type) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
-            if found {
-                Ok(fn_ret_type)
+            if arg_has_err {
+                Err(arg_err)
             } else {
-                Err(format!("{}", "Error: function call (), but no matching declaration."))
+                /* Check to see if a function declaration exists with name
+                 * fc.name and matching argument type list (compared to
+                 * fncall_arg_types). If so, return the type returned
+                 * by that function. */
+                let (found, fn_ret_type) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
+                if found {
+                    Ok(fn_ret_type)
+                } else {
+                    Err(format!("Error: function call '{}', but no matching declaration.", fc))
+                }
             }
         },
     }

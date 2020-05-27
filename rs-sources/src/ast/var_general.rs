@@ -57,6 +57,7 @@ impl fmt::Display for VarDecl
 	}
 }
 
+#[derive(Clone)]
 pub struct VarRef
 {
 	pub name : String,
