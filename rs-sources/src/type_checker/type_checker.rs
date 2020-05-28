@@ -393,6 +393,11 @@ fn check_bexpr_type(bexp: &ast::bexp::Bexp, var_types: &std::vec::Vec<VarTypePai
     }
 }
 
+/* This function checks to make sure a given Aexp is well-typed.
+ * The primary thing to check is that in a given expression, if
+ * a variable is used we want to make sure that that variable
+ * is of a type appropriate for the associated Aexp. For instance,
+ * if we have "x + 5", we want to make sure x is an Int32 or Float32 type. */
 fn check_aexpr_type(aexp: &ast::aexp::Aexp, var_types: &std::vec::Vec<VarTypePair>,
                     fn_types: &std::vec::Vec<FuncIdentifierTuple>) -> Result<ast::data_type::DataType, String> {
     match aexp {
@@ -512,8 +517,13 @@ fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -> (b
     (found, var_type, set)
 }
 
+/* This function reads over an AST and ignores everything except for
+ * function declarations. Once it sees one, it adds that function's
+ * name, argument types, and return type to a vector which holds
+ * all the declarations. This vector is the output of this function. */
 pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIdentifierTuple>) -> () {
     match cmd {
+        // Functional Declarations
         ast::cmd::Cmd::FnDecl{prototype, fn_cmd : _} => {
             /* If a function declaration is found, we'll need to record
              * the function's name, its return type, and the type of
@@ -525,17 +535,26 @@ pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIde
             }
             (*fn_types).push(FuncIdentifierTuple((*prototype).name.clone(), (*prototype).ret_type, arg_type_list))
         },
+
+        // Seq
         ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
             // Check sub-sequences to see if any function declarations.
             gather_fn_types(fst_cmd, fn_types);
             gather_fn_types(snd_cmd, fn_types);
             ()
         },
-        // In every other case, do nothing (since no possible function declaration).
+
+        // If not function dec or seq, do nothing (since no possible function declaration).
         _ => ()
     }
 }
 
+/* This is used to tell us what the return type of a function is
+ * if we are handling a function call. By passing the function's name
+ * and the types of that call's arguments, we can compare that to
+ * all the function declarations that exists and confirm an associated
+ * declaration exists by looking in our fn_types vector (which holds all
+ * the declarations). */
 fn get_fn_return_type(fn_types: &std::vec::Vec<FuncIdentifierTuple>, fn_name: &String,
                       arg_types : &Vec<ast::data_type::DataType>) -> (bool, ast::data_type::DataType) {
     let mut found = false;

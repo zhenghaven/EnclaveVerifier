@@ -3,6 +3,8 @@ use enclave_verifier::type_checker;
 use enclave_verifier::ast;
 use enclave_verifier::ast::Deserializible;
 
+use std::env;
+
 /// Read the example program from a bytecode file
 /// 
 /// `prog_name` is the name of the program, and an suffix `.impc` will be appended
@@ -45,7 +47,13 @@ fn read_byte_code_from_file(prog_name : &str) -> Vec<u8>
 
 fn main()
 {
-	let example_prog_1_name = "is_prime";
+	let args : Vec<String> = env::args().collect();
+	if args.len() != 2 {
+		panic!("Incorrect number of arguments provided.")
+	}
+
+	// Read AST from bytecode file.
+	let example_prog_1_name = &args[1];
 	let example_prog_1_bytes = read_byte_code_from_file(example_prog_1_name);
 	let (_bytes_left_1, example_prog_1) = match ast::cmd::Cmd::from_bytes(&example_prog_1_bytes[..])
 	{
@@ -57,17 +65,11 @@ fn main()
 	println!("Example program {}:\n{}\n", example_prog_1_name, ast::indent_lines_to_string(&example_prog_1_lines, '\t'));
 
 
-
-	println!("\nIteration test:\n");
+    // Run type-checker on this AST.
+	println!("Iteration test:");
 	let var_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
 	let mut fn_vec:  Vec<type_checker::type_checker::FuncIdentifierTuple> = Vec::new();
 	type_checker::type_checker::gather_fn_types(&example_prog_1, &mut fn_vec);
-	for elem in &fn_vec {
-		println!("{} : {}", elem.0, elem.1);
-		for arg in &elem.2 {
-			println!("\t{}", arg);
-		}
-	};
 	let res = type_checker::type_checker::iterate_through_ast(example_prog_1, var_vec, &fn_vec, ast::data_type::DataType::Void);
 	match res {
 		Ok(_)    => println!("Successful type checking!"),
