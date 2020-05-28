@@ -3,6 +3,7 @@ use std::fmt;
 use std::vec::Vec;
 use std::string::String;
 
+#[derive(Clone)]
 pub struct FnProtoType
 {
 	pub ret_type : super::data_type::DataType,
@@ -114,6 +115,7 @@ impl fmt::Display for FnProtoType
 	}
 }
 
+#[derive(Clone)]
 pub struct FnCall
 {
 	pub name : String,

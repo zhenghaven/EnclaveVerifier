@@ -4,6 +4,7 @@ use std::vec::Vec;
 use std::string::String;
 
 /// Any type of expression
+#[derive(Clone)]
 pub enum Exp
 {
 	/// Aexp - an arithmetic expression

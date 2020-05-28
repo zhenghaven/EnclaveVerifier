@@ -1,116 +1,47 @@
 use std::fmt;
+use std::rc::Rc;
 
 use std::option::Option;
 use std::collections::HashMap;
-use std::vec::Vec;
+use std::marker::PhantomData;
 
-pub trait ToFromFnDecl<T>
+pub trait AnyVariable<ValueType>
 {
-	fn from_decl(pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> T;
+	fn from_decl(decl : super::var_general::VarDecl) -> Self;
 
-	fn to_decl(self) -> (super::func_general::FnProtoType, super::cmd::Cmd);
-}
+	fn assign(&mut self, e : ValueType) -> Result<(), String>;
 
-pub struct FuncState
-{
-	pub f_pt : super::func_general::FnProtoType,
-	pub cmd : super::cmd::Cmd,
-}
+	fn read(&self) -> Option<ValueType>;
 
-impl ToFromFnDecl<FuncState> for FuncState
-{
-	fn from_decl(pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> FuncState
-	{
-		FuncState { f_pt : pt, cmd : cmd }
-	}
-
-	fn to_decl(self) -> (super::func_general::FnProtoType, super::cmd::Cmd)
-	{
-		(self.f_pt, self.cmd)
-	}
-}
-
-impl fmt::Display for FuncState
-{
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-	{
-		write!(f, "{}", self.f_pt)
-	}
-}
-
-pub struct VarState
-{
-	pub s : Option<super::exp::Exp>,
-	pub t : super::data_type::DataType,
-}
-
-pub trait ToFromVarDecl<T>
-{
-	fn from_decl(decl : super::var_general::VarDecl) -> T;
+	fn get_type(&self) -> super::data_type::DataType;
 
 	fn to_decl(self, name : String) -> super::var_general::VarDecl;
 }
 
-impl VarState
+pub trait AnyFunc
 {
-	pub fn get_mut(&mut self) -> Option<&mut super::exp::Exp>
-	{
-		match &mut self.s
-		{
-			Option::None    => Option::None,
-			Option::Some(v) => Option::Some(v),
-		}
-	}
+	fn from_decl(pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Self;
 
-	pub fn get(&self) -> Option<&super::exp::Exp>
-	{
-		match &self.s
-		{
-			Option::None    => Option::None,
-			Option::Some(v) => Option::Some(v),
-		}
-	}
+	fn to_decl(self) -> (super::func_general::FnProtoType, super::cmd::Cmd);
+
+	fn get_prototype_ref(&self) -> &super::func_general::FnProtoType;
+
+	fn get_cmd_ref(&self) -> &super::cmd::Cmd;
 }
 
-impl ToFromVarDecl<VarState> for VarState
-{
-	fn from_decl(decl : super::var_general::VarDecl) -> VarState
-	{
-		VarState { s : Option::None, t : decl.var_type }
-	}
-
-	fn to_decl(self, name : String) -> super::var_general::VarDecl
-	{
-		super::var_general::VarDecl{ var_type : self.t, name : name }
-	}
-}
-
-impl fmt::Display for VarState
-{
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-	{
-		write!(f, "{}\t-\t", self.t)?;
-		match &self.s
-		{
-			Option::None     => write!(f, "N/A"),
-			Option::Some(v)  => write!(f, "{}", v),
-		}
-	}
-}
-
-pub struct FuncStates<T : fmt::Display>
+pub struct FuncStates<T : fmt::Display + AnyFunc >
 {
 	map : HashMap<String, T>,
 }
 
-impl<T : fmt::Display + ToFromFnDecl<T> > FuncStates<T>
+impl<T : fmt::Display + AnyFunc> FuncStates<T>
 {
 	pub fn new() -> FuncStates<T>
 	{
 		FuncStates { map : HashMap::new() }
 	}
 
-	pub fn decl(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Result<&mut T, (super::func_general::FnProtoType, super::cmd::Cmd)>
+	pub fn decl(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Option<(super::func_general::FnProtoType, super::cmd::Cmd)>
 	{
 		let fun_name = pt.name.clone();
 
@@ -118,42 +49,36 @@ impl<T : fmt::Display + ToFromFnDecl<T> > FuncStates<T>
 		{
 			match self.map.insert(fun_name.clone(), T::from_decl(pt, cmd))
 			{
-				Option::None => //inserted successfully
+				Option::None => Option::None,
+				Option::Some(_) => // An error that should not happen
 				{
-					match self.map.get_mut(&fun_name)
-					{
-						Option::Some(v)
-							=> Result::Ok(v),
-						Option::None // An error that should not happen
-							//There is nothing we can return here, just panic!
-							=> panic!("Failed to retrieve a val that just inserted to the HashMap.")
-					}
+					panic!("Failed to insert a func whose key is not contained in the HashMap.")
 				},
-				Option::Some(v) => // An error that should not happen
-				{
-					Result::Err(v.to_decl())
-				}
 			}
 
 		}
 		else
 		{
-			Result::Err((pt, cmd))
+			Option::Some((pt, cmd))
 		}
 	}
 
-	pub fn get_mut(&mut self, name : &String) -> Option<&mut T>
-	{
-		self.map.get_mut(name)
-	}
-
-	pub fn get(&self, name : &String) -> Option<&T>
+	pub fn get_fn(&self, name : &String) -> Option<&T>
 	{
 		self.map.get(name)
 	}
+
+	pub fn has_func(&self, name : &String) -> bool
+	{
+		match self.map.get(name)
+		{
+			Option::Some(_) => true,
+			Option::None    => false,
+		}
+	}
 }
 
-impl<T : fmt::Display> fmt::Display for FuncStates<T>
+impl<T : fmt::Display + AnyFunc> fmt::Display for FuncStates<T>
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
@@ -176,19 +101,20 @@ impl<T : fmt::Display> fmt::Display for FuncStates<T>
 	}
 }
 
-pub struct VarStates<T : fmt::Display + ToFromVarDecl<T> >
+pub struct VarStates<ValueType, T : fmt::Display + AnyVariable<ValueType> >
 {
 	map : HashMap<String, T>,
+	val_stored_type : PhantomData<ValueType>,
 }
 
-impl<T : fmt::Display + ToFromVarDecl<T> > VarStates<T>
+impl<ValueType, T : fmt::Display + AnyVariable<ValueType> > VarStates<ValueType, T>
 {
-	pub fn new() -> VarStates<T>
+	pub fn new() -> VarStates<ValueType, T>
 	{
-		VarStates { map : HashMap::new() }
+		VarStates { map : HashMap::new(), val_stored_type : PhantomData }
 	}
 
-	pub fn decl(&mut self, decl : super::var_general::VarDecl) -> Result<&mut T, super::var_general::VarDecl>
+	pub fn decl(&mut self, decl : super::var_general::VarDecl) -> Option<super::var_general::VarDecl>
 	{
 		let var_name = decl.name.clone();
 
@@ -196,42 +122,58 @@ impl<T : fmt::Display + ToFromVarDecl<T> > VarStates<T>
 		{
 			match self.map.insert(var_name.clone(), T::from_decl(decl))
 			{
-				Option::None => //inserted successfully
+				Option::None => Option::None,
+				Option::Some(_) => // An error that should not happen
 				{
-					match self.map.get_mut(&var_name)
-					{
-						Option::Some(v)
-							=> Result::Ok(v),
-						Option::None // An error that should not happen
-							//There is nothing we can return here, just panic!
-							=> panic!("Failed to retrieve a val that just inserted to the HashMap.")
-					}
-				},
-				Option::Some(v) => // An error that should not happen
-				{
-					Result::Err(v.to_decl(var_name))
+					panic!("Failed to insert a val whose key is not contained in the HashMap.")
 				}
 			}
 
 		}
 		else
 		{
-			Result::Err(decl)
+			Option::Some(decl)
 		}
 	}
 
-	pub fn get_mut(&mut self, name : &String) -> Option<&mut T>
+	pub fn assign(&mut self, name : &String, v : ValueType) -> Result<Result<(), String>, ValueType>
 	{
-		self.map.get_mut(name)
+		match self.map.get_mut(name)
+		{
+			Option::Some(var_state) => Result::Ok(var_state.assign(v)),
+			Option::None            => Result::Err(v),
+		}
 	}
 
-	pub fn get(&self, name : &String) -> Option<&T>
+	pub fn read(&self, name : &String) -> Option<Option<ValueType> >
 	{
-		self.map.get(name)
+		match self.map.get(name)
+		{
+			Option::Some(var_state) => Option::Some(var_state.read()),
+			Option::None            => Option::None,
+		}
+	}
+
+	pub fn get_type(&self, name : &String) -> Option<super::data_type::DataType>
+	{
+		match self.map.get(name)
+		{
+			Option::Some(var_state) => Option::Some(var_state.get_type()),
+			Option::None            => Option::None,
+		}
+	}
+
+	pub fn has_var(&self, name : &String) -> bool
+	{
+		match self.map.get(name)
+		{
+			Option::Some(_) => true,
+			Option::None    => false,
+		}
 	}
 }
 
-impl<T : fmt::Display + ToFromVarDecl<T> > fmt::Display for VarStates<T>
+impl<ValueType, T : fmt::Display + AnyVariable<ValueType> > fmt::Display for VarStates<ValueType, T>
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
@@ -254,183 +196,173 @@ impl<T : fmt::Display + ToFromVarDecl<T> > fmt::Display for VarStates<T>
 	}
 }
 
-pub struct States<FnStateType : fmt::Display + ToFromFnDecl<FnStateType>, VarStateType : fmt::Display + ToFromVarDecl<VarStateType> >
+pub struct FuncStatesStack<FnStateType : fmt::Display + AnyFunc >
 {
-	f : FuncStates<FnStateType>,
-	v : VarStates<VarStateType>,
+	pub parent : Option<Rc<FuncStatesStack<FnStateType> > >,
+	pub state : FuncStates<FnStateType>,
 }
 
-impl<FnStateType : fmt::Display + ToFromFnDecl<FnStateType>, VarStateType : fmt::Display + ToFromVarDecl<VarStateType> >
-States<FnStateType, VarStateType>
+impl<FnStateType : fmt::Display + AnyFunc >
+FuncStatesStack<FnStateType>
 {
-	pub fn new() -> States<FnStateType, VarStateType>
+	pub fn new() -> FuncStatesStack<FnStateType>
 	{
-		States { f : FuncStates::new(), v : VarStates::new() }
+		FuncStatesStack { parent : Option::None, state : FuncStates::new() }
 	}
 
-	pub fn decl_fn(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Result<&mut FnStateType, (super::func_general::FnProtoType, super::cmd::Cmd)>
+	pub fn new_level(curr : Rc<FuncStatesStack<FnStateType> >) -> FuncStatesStack<FnStateType>
 	{
-		self.f.decl(pt, cmd)
+		FuncStatesStack { parent : Option::Some(curr), state : FuncStates::new() }
 	}
 
-	pub fn get_fn_mut(&mut self, name : &String) -> Option<&mut FnStateType>
+	pub fn decl_fn(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Option<(super::func_general::FnProtoType, super::cmd::Cmd)>
 	{
-		self.f.get_mut(name)
+		self.state.decl(pt, cmd)
 	}
 
-	pub fn get_fn(&self, name : &String) -> Option<&FnStateType>
+	fn search_fn_internal(curr : &Rc<FuncStatesStack<FnStateType> >, name : &String, level : usize) -> Option<(Rc<FuncStatesStack<FnStateType> >, usize)>
 	{
-		self.f.get(name)
+		match curr.state.get_fn(name)
+		{
+			Option::Some(_) => Option::Some((curr.clone(), level)),
+			Option::None    => match &curr.parent
+				{
+					Option::Some(p) => Self::search_fn_internal(&p, name, level + 1),
+					Option::None    => Option::None,
+				},
+		}
 	}
 
-	pub fn decl_var(&mut self, decl : super::var_general::VarDecl) -> Result<&mut VarStateType, super::var_general::VarDecl>
+	pub fn search_fn(curr : &Rc<FuncStatesStack<FnStateType> >, name : &String) -> Option<(Rc<FuncStatesStack<FnStateType> >, usize)>
 	{
-		self.v.decl(decl)
+		Self::search_fn_internal(curr, name, 0)
 	}
 
-	pub fn get_var_mut(&mut self, name : &String) -> Option<&mut VarStateType>
+	pub fn get_fn_at_curr_level(&self, name : &String) -> Option<&FnStateType>
 	{
-		self.v.get_mut(name)
-	}
-
-	pub fn get_var(&self, name : &String) -> Option<&VarStateType>
-	{
-		self.v.get(name)
+		match self.state.get_fn(name)
+		{
+			Option::Some(res_fn) => Option::Some(res_fn),
+			Option::None         => Option::None,
+		}
 	}
 }
 
-impl<FnStateType : fmt::Display + ToFromFnDecl<FnStateType>, VarStateType : fmt::Display + ToFromVarDecl<VarStateType> >
-fmt::Display for States<FnStateType, VarStateType>
+impl<FnStateType : fmt::Display + AnyFunc >
+fmt::Display for FuncStatesStack<FnStateType>
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(f, "Function States:\n")?;
-		write!(f, "{}", self.f)?;
-		write!(f, "Variable States:\n")?;
-		write!(f, "{}", self.v)
+		match &self.parent
+		{
+			Option::Some(parent) => { write!(f, "{}", parent)?; },
+			Option::None         => {},
+		}
+
+		write!(f, "{}", self.state)
 	}
 }
 
-pub struct StatesStack
-<FnStateType : fmt::Display + ToFromFnDecl<FnStateType>, VarStateType : fmt::Display + ToFromVarDecl<VarStateType> >
+pub struct VarStatesStack<ValueType, VarStateType : fmt::Display + AnyVariable<ValueType> >
 {
-	stack : Vec<States<FnStateType, VarStateType> >,
+	pub parent : Option<Rc<VarStatesStack<ValueType, VarStateType> > >,
+	pub state : VarStates<ValueType, VarStateType>,
 }
 
-impl<FnStateType : fmt::Display + ToFromFnDecl<FnStateType>, VarStateType : fmt::Display + ToFromVarDecl<VarStateType> >
-StatesStack<FnStateType, VarStateType>
+impl<ValueType, VarStateType : fmt::Display + AnyVariable<ValueType> >
+VarStatesStack<ValueType, VarStateType>
 {
-	pub fn new() -> StatesStack<FnStateType, VarStateType>
+	pub fn new() -> VarStatesStack<ValueType, VarStateType>
 	{
-		StatesStack { stack : Vec::new() }
+		VarStatesStack { parent : Option::None, state : VarStates::new() }
 	}
 
-	pub fn push(&mut self)
+	pub fn new_level(curr : Rc<VarStatesStack<ValueType, VarStateType> >) -> VarStatesStack<ValueType, VarStateType>
 	{
-		self.stack.push(States::new());
+		VarStatesStack { parent : Option::Some(curr), state : VarStates::new() }
 	}
 
-	pub fn pop(&mut self)
+	pub fn decl_var(&mut self, decl : super::var_general::VarDecl) -> Option<super::var_general::VarDecl>
 	{
-		self.stack.pop();
+		self.state.decl(decl)
 	}
 
-	pub fn get_states_mut(&mut self) -> Option<&mut States<FnStateType, VarStateType> >
+	pub fn var_assign(&mut self, name : &String, v : ValueType) -> Result<Result<(), String>, ValueType>
 	{
-		self.stack.last_mut()
-	}
-
-	pub fn get_states(&self) -> Option<&States<FnStateType, VarStateType> >
-	{
-		self.stack.last()
-	}
-
-	pub fn decl_fn(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Result<&mut FnStateType, (super::func_general::FnProtoType, super::cmd::Cmd)>
-	{
-		match self.stack.last_mut()
+		match self.state.assign(name, v)
 		{
-			Option::None    => Result::Err((pt, cmd)),
-			Option::Some(v) => v.decl_fn(pt, cmd),
+			Result::Ok (res_v) => Result::Ok(res_v),
+			Result::Err(ret_v) => match &mut self.parent
+			{
+				Option::Some(p) => {
+					let p_ref = match Rc::get_mut(p)
+					{
+						Some(v) => v,
+						None    => return Result::Err(ret_v)
+					};
+					p_ref.var_assign(name, ret_v)
+				},
+				Option::None    => Result::Err(ret_v)
+			},
 		}
 	}
 
-	pub fn get_fn_mut(&mut self, name : &String) -> Option<&mut FnStateType>
+	pub fn var_read(&self, name : &String) -> Option<Option<ValueType> >
 	{
-		for s in self.stack.iter_mut().rev()
+		match self.state.read(name)
 		{
-			match s.get_fn_mut(name)
+			Option::Some(res_v) => Option::Some(res_v),
+			Option::None        => match &self.parent
 			{
-				Option::Some(v) => return Option::Some(v),
-				Option::None    => {},
+				Option::Some(p) => p.var_read(name),
+				Option::None    => Option::None
+			},
+		}
+	}
+
+	pub fn var_get_type(&self, name : &String) -> Option<super::data_type::DataType>
+	{
+		match self.state.get_type(name)
+		{
+			Option::Some(res_v) => Option::Some(res_v),
+			Option::None        => match &self.parent
+			{
+				Option::Some(p) => p.var_get_type(name),
+				Option::None    => Option::None
+			},
+		}
+	}
+
+	pub fn get_level(curr : &Rc<VarStatesStack<ValueType, VarStateType> >, level : usize) -> Option<Rc<VarStatesStack<ValueType, VarStateType> > >
+	{
+		if level == 0
+		{
+			Option::Some(curr.clone())
+		}
+		else
+		{
+			match &curr.parent
+			{
+				Option::Some(p) => Self::get_level(p, level - 1),
+				Option::None    => Option::None,
 			}
 		}
-
-		Option::None
-	}
-
-	pub fn get_fn(&self, name : &String) -> Option<&FnStateType>
-	{
-		for s in self.stack.iter().rev()
-		{
-			match s.get_fn(name)
-			{
-				Option::Some(v) => return Option::Some(v),
-				Option::None    => {},
-			}
-		}
-
-		Option::None
-	}
-
-	pub fn decl_var(&mut self, decl : super::var_general::VarDecl) -> Result<&mut VarStateType, super::var_general::VarDecl>
-	{
-		match self.stack.last_mut()
-		{
-			Option::None    => Result::Err(decl),
-			Option::Some(v) => v.decl_var(decl),
-		}
-	}
-
-	pub fn get_var_mut(&mut self, name : &String) -> Option<&mut VarStateType>
-	{
-		for s in self.stack.iter_mut().rev()
-		{
-			match s.get_var_mut(name)
-			{
-				Option::Some(v) => return Option::Some(v),
-				Option::None    => {},
-			}
-		}
-
-		Option::None
-	}
-
-	pub fn get_var(&self, name : &String) -> Option<&VarStateType>
-	{
-		for s in self.stack.iter().rev()
-		{
-			match s.get_var(name)
-			{
-				Option::Some(v) => return Option::Some(v),
-				Option::None    => {},
-			}
-		}
-
-		Option::None
 	}
 }
 
-impl<FnStateType : fmt::Display + ToFromFnDecl<FnStateType>, VarStateType : fmt::Display + ToFromVarDecl<VarStateType> >
-fmt::Display for StatesStack<FnStateType, VarStateType>
+impl<ValueType, VarStateType : fmt::Display + AnyVariable<ValueType> >
+fmt::Display for VarStatesStack<ValueType, VarStateType>
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		for i in 0..self.stack.len()
+		write!(f, "Variable States:\n")?;
+		match &self.parent
 		{
-			write!(f, "State Level {}\n", i)?;
-			write!(f, "{}", self.stack[i])?;
+			Option::Some(parent) => { write!(f, "{}", parent)?; },
+			Option::None         => {},
 		}
 
-		write!(f, "")
+		write!(f, "{}", self.state)
 	}
 }

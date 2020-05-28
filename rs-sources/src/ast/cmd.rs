@@ -5,6 +5,7 @@ use std::string::String;
 
 use std::boxed::Box;
 
+#[derive(Clone)]
 pub enum Cmd
 {
 	Skip,
