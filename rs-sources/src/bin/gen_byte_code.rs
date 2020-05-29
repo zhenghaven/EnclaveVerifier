@@ -64,14 +64,14 @@ fn construct_example_prog_ifel() -> cmd::Cmd
 	let y_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "y".to_string()));
 	let y_asg = assign(var_general::VarRef::from_str("y"), ("x".to_aexp() + 1i32.to_aexp()).to_exp());
 	let ret_t = ret(
-		(aexp::Aexp::FnCall{
+		Some((aexp::Aexp::FnCall{
 			fc : func_general::FnCall::new("entry".to_string(), vec!["y".to_aexp().to_exp()])
-		}).to_exp()
+		}).to_exp())
 	);
     let seq_t = seq(y_dec, seq(y_asg, ret_t));
 
     // return x;
-	let ret_f = ret(("x".to_aexp()).to_exp());
+	let ret_f = ret(Some(("x".to_aexp()).to_exp()));
 
 
 	let x_gte_0 = "x".to_aexp().gte(0i32.to_aexp());
@@ -180,7 +180,7 @@ fn construct_example_prog_overloading() -> cmd::Cmd
 	let fn_prototype_o1 = func_general::FnProtoType::new(data_type::DataType::Int32, "overloaded".to_string(), var_decl_list_o1);
 
 	// return x+y
-	let ret_o1 = ret(("x".to_aexp() + "y".to_aexp()).to_exp());
+	let ret_o1 = ret(Some(("x".to_aexp() + "y".to_aexp()).to_exp()));
 	let overloaded1_dec = fn_dc(fn_prototype_o1, ret_o1);
 
 
@@ -200,7 +200,7 @@ fn construct_example_prog_overloading() -> cmd::Cmd
 	let while_o2 = wh_lp("x".to_aexp().gt(0i32.to_aexp()), seq(x_sub, y_not));
 
     // return y
-	let ret_o2 = ret(("y".to_bexp()).to_exp());
+	let ret_o2 = ret(Some(("y".to_bexp()).to_exp()));
 
 	let overloaded2_dec = fn_dc(fn_prototype_o2, seq(while_o2, ret_o2));
 
@@ -216,8 +216,8 @@ fn construct_example_prog_overloading() -> cmd::Cmd
 	let fn_prototype_o3 = func_general::FnProtoType::new(data_type::DataType::Float32, "overloaded".to_string(), var_decl_list_o3);
 
 	// if x { return y } else { return y+1 }
-	let ret_o3t  = ret(("y".to_aexp()).to_exp());
-	let ret_o3f  = ret(("y".to_aexp() + 1i32.to_aexp()).to_exp());
+	let ret_o3t  = ret(Some(("y".to_aexp()).to_exp()));
+	let ret_o3f  = ret(Some(("y".to_aexp() + 1i32.to_aexp()).to_exp()));
 	let if_el_o3 = if_el("x".to_bexp(), ret_o3t, ret_o3f);
 
 	let overloaded3_dec = fn_dc(fn_prototype_o3, if_el_o3);
@@ -313,7 +313,7 @@ fn construct_example_prog_1() -> cmd::Cmd
 	let fn_prototype_1 = func_general::FnProtoType::new(data_type::DataType::Bool, "is_divisible".to_string(), var_decl_list_1);
 
 	//return (x % factor) == 0;
-	let fn_cmd_1 = ret(("x".to_aexp() % "factor".to_aexp()).aeq(0i32.to_aexp()).to_exp());
+	let fn_cmd_1 = ret(Some(("x".to_aexp() % "factor".to_aexp()).aeq(0i32.to_aexp()).to_exp()));
 
 	//Constrcut Function ---
 	let fn_1 = fn_dc(fn_prototype_1, fn_cmd_1);
@@ -330,7 +330,7 @@ fn construct_example_prog_1() -> cmd::Cmd
 	let fn_prototype_2 = func_general::FnProtoType::new(data_type::DataType::Bool, "entry".to_string(), var_decl_list_2);
 
 	//if x <= 1 { return false; } else { skip; }
-	let fn_cmd_2_seq_1 = if_el("x".to_aexp().lte(1i32.to_aexp()), ret(false.to_bexp().to_exp()), skip());
+	let fn_cmd_2_seq_1 = if_el("x".to_aexp().lte(1i32.to_aexp()), ret(Some(false.to_bexp().to_exp())), skip());
 	//let mut is_prime : bool;
 	let fn_cmd_2_seq_2 = var_dc(var_general::VarDecl::new(data_type::DataType::Bool, "is_prime".to_string()));
 	//is_prime = true;
@@ -350,7 +350,7 @@ fn construct_example_prog_1() -> cmd::Cmd
 	//while is_prime && (test_num > 1) { seq{fn_cmd_2_seq_x, fn_cmd_2_seq_x} }
 	let fn_cmd_2_seq_8 = wh_lp("is_prime".to_bexp().and("test_num".to_aexp().gt(1i32.to_aexp())), seq(fn_cmd_2_seq_6, fn_cmd_2_seq_7));
 	//return is_prime;
-	let fn_cmd_2_seq_9 = ret("is_prime".to_bexp().to_exp());
+	let fn_cmd_2_seq_9 = ret(Some("is_prime".to_bexp().to_exp()));
 
 	//Constrcut Seq ---
 	let fn_cmd_2 = seq(

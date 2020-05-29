@@ -16,7 +16,7 @@ pub enum Cmd
 	WhileLoop {cond : Box<super::bexp::Bexp>, lp_cmd : Box<Cmd>},
 	Seq       {fst_cmd : Box<Cmd>, snd_cmd : Box<Cmd>},
 	FnDecl    {prototype : Box<super::func_general::FnProtoType>, fn_cmd : Box<Cmd>},
-	Return    {e : Box<super::exp::Exp>},
+	Return    {e : Option<Box<super::exp::Exp>>},
 }
 
 impl Cmd
@@ -83,7 +83,12 @@ impl Cmd
 				fn_cmd.to_indent_lines(out_lines);
 				out_lines.push(super::IndentString::Exit);
 			},
-			Cmd::Return{e}                    => out_lines.push(super::IndentString::Stay(format!("return {};", e))),
+			Cmd::Return{e}                    => {
+				match e {
+					Some(expr) => out_lines.push(super::IndentString::Stay(format!("return {};", expr))),
+					None       => out_lines.push(super::IndentString::Stay(format!("return;"))),
+				}
+			}
 		}
 	}
 }
@@ -165,9 +170,17 @@ impl super::Serializible for Cmd
 			},
 			Cmd::Return{e} =>
 			{
-				res.append(&mut (e.to_bytes()?));
-
-				Result::Ok(res)
+				match e {
+					Some(expr) => {
+						res.append(&mut vec![1]); // To indicate expr
+						res.append(&mut (expr.to_bytes()?));
+						Result::Ok(res)
+					},
+					None       => {
+						res.append(&mut vec![0]); // To indicate no expr
+						Result::Ok(res)
+					},
+				}
 			},
 		}
 	}
@@ -237,9 +250,13 @@ impl super::Deserializible<Cmd> for Cmd
 				},
 				ByteId::Return    =>
 				{
-					let (bytes_left_1, parsed_e) = super::exp::Exp::from_bytes(&bytes[1..])?;
-
-					Result::Ok((bytes_left_1, ret(parsed_e)))
+					let has_expr  = bytes[1];
+					if has_expr == 1u8 {
+						let (bytes_left_1, parsed_e) = super::exp::Exp::from_bytes(&bytes[2..])?;
+						Result::Ok((bytes_left_1, ret(Some(parsed_e))))
+					} else {
+						Result::Ok((&bytes[2..], ret(None)))
+					}
 				},
 			}
 		}
@@ -271,7 +288,12 @@ impl fmt::Display for Cmd
 			Cmd::WhileLoop{cond, lp_cmd}      => write!(f, "while {0}\n{2}\n{1}\n{3}", cond, lp_cmd, "{", "}"),
 			Cmd::Seq{fst_cmd, snd_cmd}        => write!(f, "{}\n{}", fst_cmd, snd_cmd),
 			Cmd::FnDecl{prototype, fn_cmd}    => write!(f, "{0}\n{2}\n{1}\n{3}", prototype, fn_cmd, "{", "}"),
-			Cmd::Return{e}                    => write!(f, "return {};", e),
+			Cmd::Return{e}                    => {
+				match e {
+					Some(expr) => write!(f, "return {};", expr),
+					None       => write!(f, "return;"),
+				}
+			}
 		}
 	}
 }
@@ -315,9 +337,12 @@ pub mod constructor_helper
 		super::Cmd::FnDecl {prototype : Box::new(prototype), fn_cmd : Box::new(fn_cmd)}
 	}
 
-	pub fn ret(e : super::super::exp::Exp) -> super::Cmd
+	pub fn ret(e : Option<super::super::exp::Exp>) -> super::Cmd
 	{
-		super::Cmd::Return {e : Box::new(e)}
+		match e {
+			Some(expr) => super::Cmd::Return {e : Some(Box::new(expr))},
+			None       => super::Cmd::Return {e : None},
+		}
 	}
 }
 

@@ -234,27 +234,38 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
             /* 1. Find type of expression (e) being returned.
              * 2. Make sure e's type matches the current
              *    function's return type. */
-            let res = match *e.clone() {
-                ast::exp::Exp::A{e} => {
-                    check_aexpr_type(&e, &var_types, fn_types)
-                },
-                ast::exp::Exp::B{e} => {
-                    check_bexpr_type(&e, &var_types, fn_types)
-                },
-            };
-            match res {
-                Ok(ret_type) => {
-                    if ret_type == curr_fn_type {
-                        // If return type matches func type, it type checks.
-                        Ok(var_types)
-                    } else if curr_fn_type == ast::data_type::DataType::Float32 && ret_type == ast::data_type::DataType::Int32 {
-                        // If return type = Int32 and func_type = Float32, type check is OK.
+            match e {
+                None => {
+                    if curr_fn_type == ast::data_type::DataType::Void {
                         Ok(var_types)
                     } else {
-                        Err(format!("Error: 'return {}' does not have same type as function type.", e))
+                        Err(format!("Error: 'return' has void type, which is not function's return type."))
                     }
                 },
-                Err(why) => Err(why),
+                Some(expr) => {
+                    let res = match *expr.clone() {
+                        ast::exp::Exp::A{e} => {
+                            check_aexpr_type(&e, &var_types, fn_types)
+                        },
+                        ast::exp::Exp::B{e} => {
+                            check_bexpr_type(&e, &var_types, fn_types)
+                        },
+                    };
+                    match res {
+                        Ok(ret_type) => {
+                            if ret_type == curr_fn_type {
+                                // If return type matches func type, it type checks.
+                                Ok(var_types)
+                            } else if curr_fn_type == ast::data_type::DataType::Float32 && ret_type == ast::data_type::DataType::Int32 {
+                                // If return type = Int32 and func_type = Float32, type check is OK.
+                                Ok(var_types)
+                            } else {
+                                Err(format!("Error: 'return {}' does not have same type as function type.", expr))
+                            }
+                        },
+                        Err(why) => Err(why),
+                    }
+                },
             }
         },
     }
