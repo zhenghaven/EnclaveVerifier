@@ -85,7 +85,11 @@ pub fn gen_prog_states(prog : &mut interpreter::Program, prog_cmd : &ast::cmd::C
 
 	match prog_root_res
 	{
-		Option::Some(v) => panic!("Program root returned {}.", v),
+		Option::Some(v) => match v
+		{
+			Option::Some(v2) => panic!("Program root shouldn't contain return statement; it returned {}.", v2),
+			Option::None     => panic!("Program root shouldn't contain return statement; even it's a void return."),
+		},
 		Option::None    => {},
 	}
 }
@@ -98,8 +102,8 @@ pub fn make_entry_call(prog : &interpreter::Program, param_list : Vec<ast::exp::
 	{
 		Result::Ok(ok_val) => match ok_val
 		{
-			Option::Some(v) => println!("Function returned {}", v),
-			Option::None    => println!("Function didn't return any value.")
+			Option::Some(v) => println!("Function call {} returned {}", entry_call, v),
+			Option::None    => println!("Function call {} didn't return any value.", entry_call)
 		},
 		Result::Err(why)   => panic!("Entry call failed. {}", why),
 	}

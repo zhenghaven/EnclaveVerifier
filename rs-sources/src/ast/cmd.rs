@@ -172,12 +172,12 @@ impl super::Serializible for Cmd
 			{
 				match e {
 					Some(expr) => {
-						res.append(&mut vec![1]); // To indicate expr
+						res.push(1u8); // To indicate expr
 						res.append(&mut (expr.to_bytes()?));
 						Result::Ok(res)
 					},
 					None       => {
-						res.append(&mut vec![0]); // To indicate no expr
+						res.push(0u8); // To indicate no expr
 						Result::Ok(res)
 					},
 				}
@@ -250,12 +250,14 @@ impl super::Deserializible<Cmd> for Cmd
 				},
 				ByteId::Return    =>
 				{
-					let has_expr  = bytes[1];
-					if has_expr == 1u8 {
+					let has_expr = bytes[1];
+					if has_expr == 1u8
+					{
 						let (bytes_left_1, parsed_e) = super::exp::Exp::from_bytes(&bytes[2..])?;
-						Result::Ok((bytes_left_1, ret(Some(parsed_e))))
-					} else {
-						Result::Ok((&bytes[2..], ret(None)))
+						Result::Ok((bytes_left_1, ret(Option::Some(parsed_e))))
+					} else
+					{
+						Result::Ok((&bytes[2..], ret(Option::None)))
 					}
 				},
 			}

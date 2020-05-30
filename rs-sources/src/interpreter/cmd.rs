@@ -18,7 +18,7 @@ pub trait CanEvalToExpVal
 		&self,
 		func_states : & mut Rc<FuncStatesStack<FuncState> >,
 		var_states  : & mut Rc<VarStatesStack<ExpValue, VarState> >)
-		-> Result<Option<ExpValue>, String>;
+		-> Result<Option<Option<ExpValue> >, String>;
 }
 
 impl CanEvalToExpVal for cmd::Cmd
@@ -27,7 +27,7 @@ impl CanEvalToExpVal for cmd::Cmd
 		&self,
 		func_states : & mut Rc<FuncStatesStack<FuncState> >,
 		var_states  : & mut Rc<VarStatesStack<ExpValue, VarState> >)
-		-> Result<Option<ExpValue>, String>
+		-> Result<Option<Option<ExpValue> >, String>
 	{
 		use cmd::Cmd;
 		use exp::CanEvalToExpVal;
@@ -129,7 +129,12 @@ impl CanEvalToExpVal for cmd::Cmd
 			},
 			Cmd::Return   { e }                    =>
 			{
-				return Result::Ok(Option::Some(e.eval_to_exp_val(func_states, var_states)?))
+				match e
+				{
+					Option::Some(e_v) => return Result::Ok(Option::Some(Option::Some(e_v.eval_to_exp_val(func_states, var_states)?))),
+					Option::None      => return Result::Ok(Option::Some(Option::None)),
+				}
+
 			},
 		}
 

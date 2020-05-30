@@ -112,7 +112,13 @@ impl FuncState
 
 			let func_cmd = self.get_cmd_ref();
 
-			func_cmd.eval_to_exp_val(&mut callee_func_states, &mut callee_var_states)
+			match func_cmd.eval_to_exp_val(&mut callee_func_states, &mut callee_var_states)?
+			{
+				Option::Some(v) => //Commands in the function returns void or something:
+					Result::Ok(v),
+				Option::None    => //Commands in the function doesn't have return statement. That's fine, it's just a void function
+					Result::Ok(Option::None),
+			}
 		}
 		else
 		{
