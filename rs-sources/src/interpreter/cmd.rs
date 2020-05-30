@@ -120,7 +120,7 @@ impl CanEvalToExpVal for cmd::Cmd
 					None    => return Result::Err(format!("Failed to unwrap the RC."))
 				};
 
-				match func_states_ref.decl_fn((**prototype).clone(), (**fn_cmd).clone())
+				match func_states_ref.decl_fn(prototype.clone(), fn_cmd.clone())
 				{
 					Option::None            => {},
 					Option::Some((ret_pt, _)) =>

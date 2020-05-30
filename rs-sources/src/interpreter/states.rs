@@ -18,8 +18,8 @@ use super::exp::ExpValue;
 #[derive(Clone)]
 pub struct FuncState
 {
-	f_pt : ast::func_general::FnProtoType,
-	cmd  : ast::cmd::Cmd,
+	f_pt : Rc<ast::func_general::FnProtoType>,
+	cmd  : Rc<ast::cmd::Cmd>,
 }
 
 impl FuncState
@@ -144,12 +144,12 @@ impl AnyFunc for FuncState
 		&self.cmd
 	}
 
-	fn from_decl(pt : func_general::FnProtoType, cmd : cmd::Cmd) -> FuncState
+	fn from_decl(pt : Rc<func_general::FnProtoType>, cmd : Rc<cmd::Cmd>) -> FuncState
 	{
 		FuncState { f_pt : pt, cmd : cmd }
 	}
 
-	fn to_decl(self) -> (func_general::FnProtoType, cmd::Cmd)
+	fn to_decl(self) -> (Rc<func_general::FnProtoType>, Rc<cmd::Cmd>)
 	{
 		(self.f_pt, self.cmd)
 	}

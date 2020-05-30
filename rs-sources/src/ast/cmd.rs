@@ -4,6 +4,7 @@ use std::vec::Vec;
 use std::string::String;
 
 use std::boxed::Box;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub enum Cmd
@@ -15,7 +16,7 @@ pub enum Cmd
 	IfElse    {cond : Box<super::bexp::Bexp>, tr_cmd : Box<Cmd>, fa_cmd : Box<Cmd>},
 	WhileLoop {cond : Box<super::bexp::Bexp>, lp_cmd : Box<Cmd>},
 	Seq       {fst_cmd : Box<Cmd>, snd_cmd : Box<Cmd>},
-	FnDecl    {prototype : Box<super::func_general::FnProtoType>, fn_cmd : Box<Cmd>},
+	FnDecl    {prototype : Rc<super::func_general::FnProtoType>, fn_cmd : Rc<Cmd>},
 	Return    {e : Option<Box<super::exp::Exp>>},
 }
 
@@ -303,6 +304,7 @@ impl fmt::Display for Cmd
 pub mod constructor_helper
 {
 	use std::boxed::Box;
+	use std::rc::Rc;
 
 	pub fn skip() -> super::Cmd
 	{
@@ -336,7 +338,7 @@ pub mod constructor_helper
 
 	pub fn fn_dc(prototype : super::super::func_general::FnProtoType, fn_cmd : super::Cmd) -> super::Cmd
 	{
-		super::Cmd::FnDecl {prototype : Box::new(prototype), fn_cmd : Box::new(fn_cmd)}
+		super::Cmd::FnDecl {prototype : Rc::new(prototype), fn_cmd : Rc::new(fn_cmd)}
 	}
 
 	pub fn ret(e : Option<super::super::exp::Exp>) -> super::Cmd

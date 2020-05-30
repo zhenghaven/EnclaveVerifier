@@ -20,9 +20,9 @@ pub trait AnyVariable<ValueType>
 
 pub trait AnyFunc
 {
-	fn from_decl(pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Self;
+	fn from_decl(pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Self;
 
-	fn to_decl(self) -> (super::func_general::FnProtoType, super::cmd::Cmd);
+	fn to_decl(self) -> (Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>);
 
 	fn get_prototype_ref(&self) -> &super::func_general::FnProtoType;
 
@@ -41,7 +41,7 @@ impl<T : fmt::Display + AnyFunc> FuncStates<T>
 		FuncStates { map : HashMap::new() }
 	}
 
-	pub fn decl(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Option<(super::func_general::FnProtoType, super::cmd::Cmd)>
+	pub fn decl(&mut self, pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Option<(Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>)>
 	{
 		let fun_name = pt.name.clone();
 
@@ -215,7 +215,7 @@ FuncStatesStack<FnStateType>
 		FuncStatesStack { parent : Option::Some(curr), state : FuncStates::new() }
 	}
 
-	pub fn decl_fn(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Option<(super::func_general::FnProtoType, super::cmd::Cmd)>
+	pub fn decl_fn(&mut self, pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Option<(Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>)>
 	{
 		self.state.decl(pt, cmd)
 	}

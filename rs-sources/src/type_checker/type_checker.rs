@@ -223,7 +223,9 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                 var_types_clone.push(VarTypePair(var_decl.name.clone(), var_decl.var_type, true));
             }
 
-            match iterate_through_ast(*fn_cmd, var_types_clone, fn_types, (*prototype).ret_type) {
+            let fn_cmd_cp : ast::cmd::Cmd = (*fn_cmd).clone();
+
+            match iterate_through_ast(fn_cmd_cp, var_types_clone, fn_types, (*prototype).ret_type) {
                 Ok(_vt)    => Ok(var_types),
                 Err(why)   => Err(why),
             }
