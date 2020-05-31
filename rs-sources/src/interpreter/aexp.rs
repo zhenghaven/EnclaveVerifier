@@ -2,6 +2,7 @@ use std::ops;
 use std::cmp;
 use std::fmt;
 use std::rc::Rc;
+use std::vec::Vec;
 use std::string::String;
 
 use super::super::ast::aexp;
@@ -48,6 +49,62 @@ impl AexpValue
 			AexpValue::Int32(_) => data_type::DataType::Int32,
 			AexpValue::Float32(_) => data_type::DataType::Float32,
 		}
+	}
+
+	fn to_bytes_byte(&self) -> u8
+	{
+		match self
+		{
+			AexpValue::Int32(_)   => 0u8,
+			AexpValue::Float32(_) => 1u8,
+		}
+	}
+
+	pub fn to_bytes(&self) -> Result<Vec<u8>, String>
+	{
+		let mut res_vec : Vec<u8> = vec![self.to_bytes_byte()];
+
+		match self
+		{
+			AexpValue::Int32(val)   =>
+			{
+				res_vec.append(&mut super::super::ast::primit_serialize::int32_to_bytes(&val))
+			},
+			AexpValue::Float32(val) =>
+			{
+				res_vec.append(&mut super::super::ast::primit_serialize::flo32_to_bytes(&val))
+			},
+		}
+
+		Result::Ok(res_vec)
+	}
+
+	fn from_bytes_byte(bytes : &[u8]) -> Result<(&[u8], AexpValue), String>
+	{
+		if bytes.len() > 1
+		{
+			match bytes[0]
+			{
+				0u8 =>
+				{
+					let (bytes_left, res_val) = super::super::ast::primit_serialize::int32_from_bytes(&bytes[1..])?;
+					return Result::Ok((bytes_left, AexpValue::Int32(res_val)));
+				},
+				1u8 =>
+				{
+					let (bytes_left, res_val) = super::super::ast::primit_serialize::flo32_from_bytes(&bytes[1..])?;
+					return Result::Ok((bytes_left, AexpValue::Float32(res_val)));
+				},
+				_   => {},
+			}
+		}
+
+		Result::Err(format!("Failed to deserialize ExpValue."))
+	}
+
+	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], AexpValue), String>
+	{
+		Self::from_bytes_byte(bytes)
 	}
 }
 
