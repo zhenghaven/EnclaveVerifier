@@ -23,7 +23,6 @@ extern crate enclave_verifier;
 
 use enclave_verifier::ast;
 use enclave_verifier::ast::Deserializible;
-use enclave_verifier::ast::Serializible;
 use enclave_verifier::interpreter;
 
 pub fn concat_vec<T>(mut a : Vec<T>, mut b : Vec<T>) -> Vec<T>
@@ -53,8 +52,11 @@ pub fn func_call_res_to_bytes(res : &Option<interpreter::exp::ExpValue>) -> Resu
 }
 
 #[no_mangle]
-pub extern "C" fn interpret_byte_code(byte_code: *const u8, some_len: usize) -> sgx_status_t
+pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize, param_list: *const u8, param_list_len: usize) -> sgx_status_t
 {
+	// ------------------------------------------
+	// 1. Generate EC key pair:
+	// ------------------------------------------
 	let ecc_ctx : sgx_tcrypto::SgxEccHandle = sgx_tcrypto::SgxEccHandle::new();
 
 	match ecc_ctx.open()
@@ -68,11 +70,15 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, some_len: usize) -> 
 		Result::Ok(val)  => val,
 		Result::Err(err) => { return err; },
 	};
-	let encl_pub_key_b64 = base64::encode(&concat_vec(encl_pub_key.gx.to_vec(), encl_pub_key.gy.to_vec()));
 
-	println!("[Enclave]: Enclave public key {}.", encl_pub_key_b64);
+	println!("[Enclave]: Enclave public key {}{}.", base64::encode(&encl_pub_key.gx), base64::encode(&encl_pub_key.gy));
 
-	let input_slice = unsafe { std::slice::from_raw_parts(byte_code, some_len) };
+	// ------------------------------------------
+	// 2. Process input bytes:
+	// ------------------------------------------
+
+	let input_slice = unsafe { std::slice::from_raw_parts(byte_code, byte_code_len) };
+	let param_list_input_slice = unsafe { std::slice::from_raw_parts(param_list, param_list_len) };
 
 	println!("[Enclave]: Received input ({} byte(s)).", input_slice.len());
 
@@ -95,15 +101,40 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, some_len: usize) -> 
 		Ok(val)  => val,
 		Err(err) => return err,
 	};
-	let byte_code_hash_b64 = base64::encode(&byte_code_hash);
 
-	println!("[Enclave]: Bytecode hash (SHA256): {}.", byte_code_hash_b64);
+	println!("[Enclave]: Bytecode hash SHA256(byte_code): {}.", base64::encode(&byte_code_hash));
 
 
-	//let mut example_prog_lines : Vec<ast::IndentString> = vec![];
-	//example_prog.to_indent_lines(&mut example_prog_lines);
-	//println!("[Enclave]: Example program:\n{}\n", ast::indent_lines_to_string(&example_prog_lines, '\t'));
+	// ------------------------------------------
+	// 3. Prepare entry function call from input bytes:
+	// ------------------------------------------
 
+	let (param_list_bytes_left, param_list) = match ast::func_general::FnCall::exp_list_from_bytes(param_list_input_slice)
+	{
+		Result::Ok(val)  => val,
+		Result::Err(why) =>
+		{
+			print!("[Enclave-ERROR]: . {}", why);
+			return sgx_status_t::SGX_ERROR_UNEXPECTED;
+		}
+	};
+
+	let param_list_slice = &param_list_input_slice[0..(param_list_input_slice.len() - param_list_bytes_left.len())];
+
+	let param_list_hash = match rsgx_sha256_slice(&param_list_slice)
+	{
+		Ok(val)  => val,
+		Err(err) => return err,
+	};
+
+	println!("[Enclave]: Parameter list hash SHA256(param_list): {}.", base64::encode(&param_list_hash));
+
+	let entry_call = ast::func_general::FnCall::new(format!("entry"), param_list);
+
+
+	// ------------------------------------------
+	// 4. Generate program states:
+	// ------------------------------------------
 
 	let mut prog_inter = interpreter::Program::new();
 
@@ -125,28 +156,10 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, some_len: usize) -> 
 	println!("{}", prog_inter.var_states);
 	println!("========================================================");
 
-	use ast::aexp::constructor_helper::ToAexp;
-	use ast::exp::constructor_helper::ToExp;
 
-	let param_list = vec![211i32.to_aexp().to_exp()];
-	let entry_call = ast::func_general::FnCall::new(format!("entry"), param_list);
-	let entry_call_byte = match entry_call.to_bytes()
-	{
-		Result::Ok(ok_val)  => ok_val,
-		Result::Err(why)    =>
-		{
-			print!("[Enclave-ERROR]: . {}", why);
-			return sgx_status_t::SGX_ERROR_UNEXPECTED;
-		},
-	};
-
-	let entry_call_hash = match rsgx_sha256_slice(&entry_call_byte)
-	{
-		Ok(val)  => val,
-		Err(err) => return err,
-	};
-
-	println!("[Enclave]: Entry call hash (SHA256): {}.", base64::encode(&entry_call_hash));
+	// ------------------------------------------
+	// 5. Make entry function call:
+	// ------------------------------------------
 
 	let func_call_res = match make_entry_call(&prog_inter, &entry_call)
 	{
@@ -154,12 +167,12 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, some_len: usize) -> 
 		{
 			Option::Some(v) =>
 			{
-				println!("Function call {} returned {}", entry_call, v);
+				println!("[Enclave]: Function call {} returned {}", entry_call, v);
 				ok_val
 			},
 			Option::None    =>
 			{
-				println!("Function call {} didn't return any value.", entry_call);
+				println!("[Enclave]: Function call {} didn't return any value.", entry_call);
 				ok_val
 			}
 		},
@@ -186,13 +199,39 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, some_len: usize) -> 
 		Err(err) => return err,
 	};
 
-	println!("[Enclave]: Entry call result hash (SHA256): {}.", base64::encode(&func_call_res_hash));
+	println!("[Enclave]: Entry call result hash SHA256(func_ret): {}.", base64::encode(&func_call_res_hash));
 
-	let param_list_2 = vec![222i32.to_aexp().to_exp()];
-	let entry_call_2 = ast::func_general::FnCall::new(format!("entry"), param_list_2);
 
-	make_entry_call(&prog_inter, &entry_call_2);
+	// ------------------------------------------
+	// 6. Generate report:
+	// ------------------------------------------
 
+	println!("[Enclave]: <{}> --- <{}> ---> <{}>.", base64::encode(&param_list_hash), base64::encode(&byte_code_hash), base64::encode(&func_call_res_hash));
+
+	let mut combined_bytes : Vec<u8> = Vec::new();
+
+	combined_bytes.append(&mut param_list_hash.to_vec());
+	combined_bytes.append(&mut byte_code_hash.to_vec());
+	combined_bytes.append(&mut func_call_res_hash.to_vec());
+
+	let combined_bytes_hash = match rsgx_sha256_slice(&combined_bytes)
+	{
+		Ok(val)  => val,
+		Err(err) => return err,
+	};
+
+	println!("[Enclave]: report hash SHA256(SHA256(param_list) | SHA256(byte_code) | SHA256(func_ret)): {}.", base64::encode(&combined_bytes_hash));
+
+	let sign = match ecc_ctx.ecdsa_sign_slice(&combined_bytes_hash, &encl_prv_key)
+	{
+		Ok(val)  => val,
+		Err(err) => return err,
+	};
+
+	let sign_x: &[u8; 32] = unsafe { std::mem::transmute::<&[u32; 8], &[u8; 32]>(&sign.x) };
+	let sign_y: &[u8; 32] = unsafe { std::mem::transmute::<&[u32; 8], &[u8; 32]>(&sign.y) };
+
+	println!("[Enclave]: report signature: {}{}.", base64::encode(&sign_x), base64::encode(&sign_y));
 
 	sgx_status_t::SGX_SUCCESS
 }

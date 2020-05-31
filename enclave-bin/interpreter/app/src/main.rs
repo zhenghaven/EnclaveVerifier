@@ -3,11 +3,16 @@ extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
+extern crate enclave_verifier;
+
+use enclave_verifier::ast;
+
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
 extern {
 	fn interpret_byte_code(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-		byte_code: *const u8, len: usize) -> sgx_status_t;
+		byte_code: *const u8, byte_code_len: usize,
+		param_list: *const u8, param_list_len: usize,) -> sgx_status_t;
 }
 
 fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str) -> Vec<u8>
@@ -36,6 +41,41 @@ fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str) -> Vec<u8>
 	println!("Bytecode file read {} bytes total for program {}.", byte_code.len(), prog_name);
 
 	byte_code
+}
+
+fn make_encl_func_call(enclave : &SgxEnclave, prog_bytes : &[u8], param_list : &Vec<ast::exp::Exp>) -> sgx_status_t
+{
+	let param_list_bytes = match ast::func_general::FnCall::exp_list_to_bytes(param_list)
+	{
+		Result::Ok(val)  => val,
+		Result::Err(why) =>
+		{
+			println!("[App]: Failed to generate param list bytes; {}.", why);
+			return sgx_status_t::SGX_ERROR_UNEXPECTED;
+		}
+	};
+
+	let mut retval = sgx_status_t::SGX_SUCCESS;
+
+	let result = unsafe {
+		interpret_byte_code(enclave.geteid(),
+		&mut retval,
+		prog_bytes.as_ptr() as * const u8,
+		prog_bytes.len(),
+		param_list_bytes.as_ptr() as * const u8,
+		param_list_bytes.len())
+	};
+
+	match result
+	{
+		sgx_status_t::SGX_SUCCESS => {},
+		_ =>
+		{
+			println!("[App]: ECALL Enclave Failed {}!", result.as_str());
+		}
+	};
+
+	result
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave>
@@ -72,21 +112,13 @@ fn main()
 		},
 	};
 
-	let mut retval = sgx_status_t::SGX_SUCCESS;
+	use ast::aexp::constructor_helper::ToAexp;
+	use ast::exp::constructor_helper::ToExp;
 
-	let result = unsafe {
-		interpret_byte_code(enclave.geteid(),
-		&mut retval,
-		example_prog_1_bytes.as_ptr() as * const u8,
-		example_prog_1_bytes.len())
-	};
-	match result {
-		sgx_status_t::SGX_SUCCESS => {},
-		_ => {
-			println!("[App]: ECALL Enclave Failed {}!", result.as_str());
-			return;
-		}
-	}
+	let param_list = vec![211i32.to_aexp().to_exp()];
+	make_encl_func_call(&enclave, &example_prog_1_bytes, &param_list);
+
+	//let param_list_2 = vec![222i32.to_aexp().to_exp()];
 
 	enclave.destroy();
 }

@@ -5,6 +5,8 @@ authors = ["Hunter Coffman", "Haofan Zheng"]
 build = "build.rs"
 
 [dependencies]
+enclave_verifier = { path = "../../../rs-sources" }
+
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 

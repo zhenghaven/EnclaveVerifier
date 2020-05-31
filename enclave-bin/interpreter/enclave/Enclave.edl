@@ -23,6 +23,8 @@ enclave {
     trusted {
         /* define ECALLs here. */
 
-        public sgx_status_t interpret_byte_code([in, size=len] const uint8_t* byte_code, size_t len);
+        public sgx_status_t interpret_byte_code(
+            [in, size=byte_code_len] const uint8_t* byte_code, size_t byte_code_len,
+            [in, size=param_list_len] const uint8_t* param_list, size_t param_list_len);
     };
 };
