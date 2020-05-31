@@ -1,6 +1,7 @@
 use crate::ast;
 
 use std::string::String;
+use std::string::ToString;
 use std::vec::Vec;
 
 /* Members of VarTypePair:

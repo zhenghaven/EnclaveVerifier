@@ -1,5 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
+use std::string::String;
 
 use super::super::ast::exp;
 use super::super::ast::data_type;

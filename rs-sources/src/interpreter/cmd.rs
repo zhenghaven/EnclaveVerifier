@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::string::String;
 
 use super::super::ast::cmd;
 use super::super::ast::states::FuncStatesStack;
