@@ -240,6 +240,8 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, is_cmd_global : bool, mut var_typ
             /* 1. Find type of expression (e) being returned.
              * 2. Make sure e's type matches the current
              *    function's return type. */
+            if is_cmd_global { return Err(format!("Error: making a return call at the global scope.")); }
+
             match e {
                 None => {
                     if curr_fn_type == ast::data_type::DataType::Void {
