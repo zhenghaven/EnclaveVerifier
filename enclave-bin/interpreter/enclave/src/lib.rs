@@ -51,12 +51,47 @@ pub fn func_call_res_to_bytes(res : &Option<interpreter::exp::ExpValue>) -> Resu
 	Result::Ok(res_vec)
 }
 
+fn read_pkey_from_bytes(bytes : &[u8]) -> Result<(&[u8], sgx_types::sgx_ec256_public_t), String>
+{
+	if bytes.len() < 2 * 32
+	{
+		return Result::Err(format!("The bytes given is smaller than the size of a EC256 public key."));
+	}
+
+	let mut pkey : sgx_types::sgx_ec256_public_t = sgx_types::sgx_ec256_public_t{ gx : [0; 32], gy : [0; 32] };
+
+	pkey.gx.copy_from_slice(&bytes[0..32]);
+	pkey.gy.copy_from_slice(&bytes[32..64]);
+
+	Result::Ok((&bytes[64..], pkey))
+}
+
+fn read_signature_from_bytes(bytes : &[u8]) -> Result<(&[u8], sgx_types::sgx_ec256_signature_t), String>
+{
+	if bytes.len() < 2 * 32
+	{
+		return Result::Err(format!("The bytes given is smaller than the size of a EC256 signature."));
+	}
+
+	let mut sign : sgx_types::sgx_ec256_signature_t = sgx_types::sgx_ec256_signature_t{ x : [0; 8], y : [0; 8] };
+
+	let sign_x_bytes: &mut [u8; 32] = unsafe { std::mem::transmute::<&mut [u32; 8], &mut [u8; 32]>(&mut sign.x) };
+	let sign_y_bytes: &mut [u8; 32] = unsafe { std::mem::transmute::<&mut [u32; 8], &mut [u8; 32]>(&mut sign.y) };
+
+	sign_x_bytes.copy_from_slice(&bytes[0..32]);
+	sign_y_bytes.copy_from_slice(&bytes[32..64]);
+
+	Result::Ok((&bytes[64..], sign))
+}
+
 #[no_mangle]
 pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize, param_list: *const u8, param_list_len: usize) -> sgx_status_t
 {
 	// ------------------------------------------
 	// 1. Generate EC key pair:
 	// ------------------------------------------
+	println!("");
+
 	let ecc_ctx : sgx_tcrypto::SgxEccHandle = sgx_tcrypto::SgxEccHandle::new();
 
 	match ecc_ctx.open()
@@ -76,23 +111,24 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 	// ------------------------------------------
 	// 2. Process input bytes:
 	// ------------------------------------------
+	println!("");
 
 	let input_slice = unsafe { std::slice::from_raw_parts(byte_code, byte_code_len) };
 	let param_list_input_slice = unsafe { std::slice::from_raw_parts(param_list, param_list_len) };
 
 	println!("[Enclave]: Received input ({} byte(s)).", input_slice.len());
 
-	let (input_bytes_left, example_prog) = match ast::cmd::Cmd::from_bytes(input_slice)
+	let (input_bytes_left_1, example_prog) = match ast::cmd::Cmd::from_bytes(input_slice)
 	{
 		Ok(v)    => v,
 		Err(why) =>
 		{
-			print!("[Enclave-ERROR]: Couldn't construct AST from byte code. {}", why);
+			println!("[Enclave-ERROR]: Couldn't construct AST from byte code. {}", why);
 			return sgx_status_t::SGX_ERROR_UNEXPECTED;
 		}
 	};
 
-	let byte_code_slice = &input_slice[0..(input_slice.len() - input_bytes_left.len())];
+	let byte_code_slice = &input_slice[0..(input_slice.len() - input_bytes_left_1.len())];
 
 	println!("[Enclave]: Received bytecode ({} byte(s)).", byte_code_slice.len());
 
@@ -104,17 +140,74 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 
 	println!("[Enclave]: Bytecode hash SHA256(byte_code): {}.", base64::encode(&byte_code_hash));
 
+	// ------------------------------------------
+	// 3. Read verifier's public key:
+	// ------------------------------------------
+	println!("");
+
+	let (input_bytes_left_2, verifier_pkey) = match read_pkey_from_bytes(input_bytes_left_1)
+	{
+		Ok(v)    => v,
+		Err(why) =>
+		{
+			println!("[Enclave-ERROR]: {}", why);
+			return sgx_status_t::SGX_ERROR_UNEXPECTED;
+		}
+	};
+
+	println!("[Enclave]: Verifier's public key {}{}.", base64::encode(&verifier_pkey.gx), base64::encode(&verifier_pkey.gy));
 
 	// ------------------------------------------
-	// 3. Prepare entry function call from input bytes:
+	// 4. Read verifier's signature:
 	// ------------------------------------------
+	println!("");
+
+	let (_input_bytes_left_3, verifier_sign) = match read_signature_from_bytes(input_bytes_left_2)
+	{
+		Ok(v)    => v,
+		Err(why) =>
+		{
+			println!("[Enclave-ERROR]: {}", why);
+			return sgx_status_t::SGX_ERROR_UNEXPECTED;
+		}
+	};
+
+	let verifier_sign_x: &[u8; 32] = unsafe { std::mem::transmute::<&[u32; 8], &[u8; 32]>(&verifier_sign.x) };
+	let verifier_sign_y: &[u8; 32] = unsafe { std::mem::transmute::<&[u32; 8], &[u8; 32]>(&verifier_sign.y) };
+
+	println!("[Enclave]: Verifier's signature {}{}.", base64::encode(verifier_sign_x), base64::encode(verifier_sign_y));
+
+	// ------------------------------------------
+	// 5. Verify verifier's signature:
+	// ------------------------------------------
+	println!("");
+
+	let sign_vrfy_res = match ecc_ctx.ecdsa_verify_msg(&byte_code_hash, &verifier_pkey, &verifier_sign)
+	{
+		Ok(val)  => val,
+		Err(err) => return err,
+	};
+
+	if !sign_vrfy_res
+	{
+		println!("[Enclave-ERROR]: {}", "Failed to verify the signature from verifier.");
+		return sgx_status_t::SGX_ERROR_UNEXPECTED;
+	}
+
+	println!("[Enclave]: {}", "Signature from verifier is checked.");
+
+
+	// ------------------------------------------
+	// 6. Prepare entry function call from input bytes:
+	// ------------------------------------------
+	println!("");
 
 	let (param_list_bytes_left, param_list) = match ast::func_general::FnCall::exp_list_from_bytes(param_list_input_slice)
 	{
 		Result::Ok(val)  => val,
 		Result::Err(why) =>
 		{
-			print!("[Enclave-ERROR]: . {}", why);
+			println!("[Enclave-ERROR]: {}", why);
 			return sgx_status_t::SGX_ERROR_UNEXPECTED;
 		}
 	};
@@ -133,8 +226,9 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 
 
 	// ------------------------------------------
-	// 4. Generate program states:
+	// 7. Generate program states:
 	// ------------------------------------------
+	println!("");
 
 	let mut prog_inter = interpreter::Program::new();
 
@@ -143,7 +237,7 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 		Result::Ok(_)    => {},
 		Result::Err(why) =>
 		{
-			print!("[Enclave-ERROR]: . {}", why);
+			println!("[Enclave-ERROR]: {}", why);
 			return sgx_status_t::SGX_ERROR_UNEXPECTED;
 		}
 	};
@@ -158,8 +252,9 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 
 
 	// ------------------------------------------
-	// 5. Make entry function call:
+	// 8. Make entry function call:
 	// ------------------------------------------
+	println!("");
 
 	let func_call_res = match make_entry_call(&prog_inter, &entry_call)
 	{
@@ -178,7 +273,7 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 		},
 		Result::Err(why)    =>
 		{
-			print!("[Enclave-ERROR]: . {}", why);
+			println!("[Enclave-ERROR]: {}", why);
 			return sgx_status_t::SGX_ERROR_UNEXPECTED;
 		},
 	};
@@ -188,7 +283,7 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 		Result::Ok(ok_val)  => ok_val,
 		Result::Err(why)    =>
 		{
-			print!("[Enclave-ERROR]: . {}", why);
+			println!("[Enclave-ERROR]: {}", why);
 			return sgx_status_t::SGX_ERROR_UNEXPECTED;
 		},
 	};
@@ -203,8 +298,9 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 
 
 	// ------------------------------------------
-	// 6. Generate report:
+	// 9. Generate report:
 	// ------------------------------------------
+	println!("");
 
 	println!("[Enclave]: <{}> --- <{}> ---> <{}>.", base64::encode(&param_list_hash), base64::encode(&byte_code_hash), base64::encode(&func_call_res_hash));
 

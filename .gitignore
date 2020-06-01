@@ -33,3 +33,4 @@
 
 # Customized IMP Bytecode
 *.impc
+*.vimpc

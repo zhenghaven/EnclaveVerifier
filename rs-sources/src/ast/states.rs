@@ -254,6 +254,7 @@ fmt::Display for FuncStatesStack<FnStateType>
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(f, "Function States:\n")?;
+		println!("-----------");
 		match &self.parent
 		{
 			Option::Some(parent) => { write!(f, "{}", parent)?; },
@@ -357,6 +358,7 @@ fmt::Display for VarStatesStack<ValueType, VarStateType>
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(f, "Variable States:\n")?;
+		println!("-----------");
 		match &self.parent
 		{
 			Option::Some(parent) => { write!(f, "{}", parent)?; },

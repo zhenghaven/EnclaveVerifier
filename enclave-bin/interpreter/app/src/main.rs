@@ -21,7 +21,7 @@ fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str) -> Vec<u8>
 	use std::path::Path;
 	use std::io::prelude::*;
 
-	let file_path_string = format!("{}/{}.{}", byte_code_dir, prog_name, "impc");
+	let file_path_string = format!("{}/{}.{}", byte_code_dir, prog_name, "vimpc");
 	let file_path = Path::new(&file_path_string);
 
 	let mut file = match File::open(&file_path)
@@ -72,10 +72,21 @@ fn make_encl_func_call(enclave : &SgxEnclave, prog_bytes : &[u8], param_list : &
 		_ =>
 		{
 			println!("[App]: ECALL Enclave Failed {}!", result.as_str());
+			return result;
 		}
 	};
 
-	result
+	match retval
+	{
+		sgx_status_t::SGX_SUCCESS => {},
+		_ =>
+		{
+			println!("[App]: ECALL Enclave returned {}!", retval.as_str());
+			return retval;
+		}
+	};
+
+	sgx_status_t::SGX_SUCCESS
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave>
