@@ -22,7 +22,7 @@ pub struct FuncIdentifierTuple(pub String, pub ast::data_type::DataType, pub Vec
  * Depending on what kind of command we're looking at, we
  * will type-check each one of the sub-expressions of the
  * current command based off whether they're AExps or BExps. */
-pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarTypePair>,
+pub fn iterate_through_ast(cmd: ast::cmd::Cmd, is_cmd_global : bool, mut var_types: std::vec::Vec<VarTypePair>,
                            fn_types: &std::vec::Vec<FuncIdentifierTuple>, curr_fn_type: ast::data_type::DataType)
                            -> Result<std::vec::Vec<VarTypePair>, String> {
     match cmd {
@@ -138,20 +138,21 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              * It's costly, but I don't think there's a better way since I can't
              * use references (if tr_cmd alters the reference, fa_cmd shouldn't
              * see that change). For now this works, see if alternative in future. */
+
             match check_bexpr_type(&cond, &var_types, fn_types) {
                 Ok(ast::data_type::DataType::Bool) => {
                     let mut t_has_err = false;
                     let mut f_has_err = false;
                     let mut t_err = "".to_string();
                     let mut f_err = "".to_string();
-                    match iterate_through_ast(*tr_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                    match iterate_through_ast(*tr_cmd, is_cmd_global, var_types.clone(), fn_types, curr_fn_type) {
                         Ok(_)      => (),
                         Err(why_t) => {
                             t_has_err = true;
                             t_err = why_t;
                         },
                     };
-                    match iterate_through_ast(*fa_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                    match iterate_through_ast(*fa_cmd, is_cmd_global, var_types.clone(), fn_types, curr_fn_type) {
                         Ok(_)      => (),
                         Err(why_f) => {
                             f_has_err = true;
@@ -180,7 +181,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
                      * but just because this passes doesn't mean it is well-formed. For example
                      * "while(true) { skip }" will type-check but isn't well-formed since it will
                      * never terminate. */
-                    match iterate_through_ast(*lp_cmd, var_types.clone(), fn_types, curr_fn_type) {
+                    match iterate_through_ast(*lp_cmd, is_cmd_global, var_types.clone(), fn_types, curr_fn_type) {
                         Ok(_)    => Ok(var_types),
                         Err(why) => Err(why),
                     }
@@ -196,9 +197,9 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              * 2. Check to make sure type checker passed on snd_cmd.
              * Note: We have to make sure we pass modified var_types
              * from first command result into handling second command. */
-            match iterate_through_ast(*fst_cmd, var_types, fn_types, curr_fn_type) {
+            match iterate_through_ast(*fst_cmd, is_cmd_global, var_types, fn_types, curr_fn_type) {
                 Ok(var_types_1)   => {
-                    let snd_res = iterate_through_ast(*snd_cmd, var_types_1, fn_types, curr_fn_type);
+                    let snd_res = iterate_through_ast(*snd_cmd, is_cmd_global, var_types_1, fn_types, curr_fn_type);
                     match snd_res {
                         Ok(vt2)  => Ok(vt2),
                         Err(why2)=> Err(why2),
@@ -218,12 +219,14 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, mut var_types: std::vec::Vec<VarT
              *    make sure the fn's commands are well-typed.
              * 3. When all is done, we need to make sure any
              *    return's type matches fn's type. (can probably be done in return cmd instead) */
+            if !is_cmd_global { return Err(format!("Error: trying to declare a function at non-global scope.")); }
+
             let mut var_types_clone = var_types.clone();
             for var_decl in &((*prototype).var_decl_list) {
                 var_types_clone.push(VarTypePair(var_decl.name.clone(), var_decl.var_type, true));
             }
 
-            match iterate_through_ast(*fn_cmd, var_types_clone, fn_types, (*prototype).ret_type) {
+            match iterate_through_ast(*fn_cmd, false, var_types_clone, fn_types, (*prototype).ret_type) {
                 Ok(_vt)    => Ok(var_types),
                 Err(why)   => Err(why),
             }
