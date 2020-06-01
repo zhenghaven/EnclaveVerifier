@@ -31,6 +31,8 @@ pub extern "C" fn type_check_byte_code(
 	// ------------------------------------------
 	// 1. Generate EC key pair:
 	// ------------------------------------------
+	println!("");
+
 	let ecc_ctx : sgx_tcrypto::SgxEccHandle = sgx_tcrypto::SgxEccHandle::new();
 
 	match ecc_ctx.open()
@@ -55,6 +57,7 @@ pub extern "C" fn type_check_byte_code(
 	// ------------------------------------------
 	// 2. Process input bytes:
 	// ------------------------------------------
+	println!("");
 
 	let input_slice = unsafe { std::slice::from_raw_parts(byte_code, byte_code_len) };
 
@@ -93,17 +96,12 @@ pub extern "C" fn type_check_byte_code(
 	// ------------------------------------------
 	// 3. Verification:
 	// ------------------------------------------
+	println!("");
 
-	println!("[Enclave]: Iteration test:\n");
+	println!("[Enclave]: Iteration test:");
 	let var_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
 	let mut fn_vec:  Vec<type_checker::type_checker::FuncIdentifierTuple> = Vec::new();
 	type_checker::type_checker::gather_fn_types(&example_prog, &mut fn_vec);
-	for elem in &fn_vec {
-		println!("{} : {}", elem.0, elem.1);
-		for arg in &elem.2 {
-			println!("\t{}", arg);
-		}
-	};
 	let res = type_checker::type_checker::iterate_through_ast(example_prog, var_vec, &fn_vec, ast::data_type::DataType::Void);
 	match res
 	{
@@ -119,6 +117,7 @@ pub extern "C" fn type_check_byte_code(
 	// ------------------------------------------
 	// 4. Generate signature:
 	// ------------------------------------------
+	println!("");
 
 	let sign = match ecc_ctx.ecdsa_sign_slice(&byte_code_hash, &encl_prv_key)
 	{

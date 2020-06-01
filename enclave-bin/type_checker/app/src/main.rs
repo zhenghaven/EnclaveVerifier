@@ -3,6 +3,8 @@ extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
+use std::env;
+
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
 extern {
@@ -170,6 +172,12 @@ fn main()
 {
 	let byte_code_dir : &'static str = "../../../rs-sources";
 
+	let args : Vec<String> = env::args().collect();
+	if args.len() != 2
+	{
+		panic!("[App]: Incorrect number of arguments provided.")
+	}
+
 	let enclave = match init_enclave() {
 		Ok(r) => {
 		println!("[App]: Init Enclave Successful {}!", r.geteid());
@@ -181,15 +189,15 @@ fn main()
 		},
 	};
 
-	let example_prog_1_name : &'static str = "is_prime";
-	let example_prog_1_bytes = read_byte_code_from_file(byte_code_dir, example_prog_1_name);
-	let mut pkey_x_1 : [u8; 32] = [0; 32];
-	let mut pkey_y_1 : [u8; 32] = [0; 32];
-	let mut sign_x_1 : [u32; 8] = [0u32; 8];
-	let mut sign_y_1 : [u32; 8] = [0u32; 8];
+	let example_prog_name = &args[1];
+	let example_prog_bytes = read_byte_code_from_file(byte_code_dir, example_prog_name);
+	let mut pkey_x : [u8; 32] = [0; 32];
+	let mut pkey_y : [u8; 32] = [0; 32];
+	let mut sign_x : [u32; 8] = [0u32; 8];
+	let mut sign_y : [u32; 8] = [0u32; 8];
 	let mut out_bytes_read : usize = 0;
-	do_type_check(&enclave, &example_prog_1_bytes, &mut out_bytes_read, &mut pkey_x_1, &mut pkey_y_1, &mut sign_x_1, &mut sign_y_1);
-	write_verified_byte_code(byte_code_dir, example_prog_1_name, &example_prog_1_bytes[0..out_bytes_read], &pkey_x_1, &pkey_y_1, &sign_x_1, &sign_y_1);
+	do_type_check(&enclave, &example_prog_bytes, &mut out_bytes_read, &mut pkey_x, &mut pkey_y, &mut sign_x, &mut sign_y);
+	write_verified_byte_code(byte_code_dir, example_prog_name, &example_prog_bytes[0..out_bytes_read], &pkey_x, &pkey_y, &sign_x, &sign_y);
 
 	enclave.destroy();
 }
