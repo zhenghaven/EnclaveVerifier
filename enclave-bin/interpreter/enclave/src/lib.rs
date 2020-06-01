@@ -256,6 +256,17 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 	// ------------------------------------------
 	println!("");
 
+	match interpreter::states::entry_func_call_type_check(&prog_inter.func_states, &entry_call)
+	{
+		Result::Ok(_)    => {},
+		Result::Err(why) =>
+		{
+			println!("[Enclave-ERROR]: {}", why);
+			return sgx_status_t::SGX_ERROR_UNEXPECTED;
+		},
+	}
+	println!("[Enclave]: Entry call parameter type checked.");
+
 	let func_call_res = match make_entry_call(&prog_inter, &entry_call)
 	{
 		Result::Ok(ok_val)  => match &ok_val

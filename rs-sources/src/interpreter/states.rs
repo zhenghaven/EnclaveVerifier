@@ -155,6 +155,59 @@ impl AnyFunc for FuncState
 	}
 }
 
+impl fmt::Display for FuncState
+{
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+	{
+		write!(f, "{}", self.f_pt)
+	}
+}
+
+pub fn entry_func_call_type_check(
+	func_states : & Rc<FuncStatesStack<FuncState> >,
+	call        : & func_general::FnCall) -> Result<(), String>
+{
+	let callee_opt = FuncStatesStack::search_fn(func_states, &call.name);
+	let (func_defined_func_states, _func_defined_level) = match callee_opt
+	{
+		Option::Some(v) => v,
+		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
+	};
+
+	let func_defined_func_states_2 = func_defined_func_states.clone();
+	let callee = match func_defined_func_states_2.get_fn_at_curr_level(&call.name)
+	{
+		Option::Some(v) => v,
+		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
+	};
+
+	if callee.get_prototype_ref().var_decl_list.len() != call.exp_list.len()
+	{
+		return Result::Err(format!("The number of parameter given to the function call {} doesn't match the function's prototype.", callee.get_prototype_ref().name));
+	}
+
+	for (decl, param) in callee.get_prototype_ref().var_decl_list.iter().zip(call.exp_list.iter())
+	{
+		use super::exp::CanEvalToExpVal;
+
+		let param_type = match param.simp_eval_to_exp_val()
+		{
+			Result::Ok(val) => val.get_type(),
+			Result::Err(_)  =>
+			{
+				return Result::Err(format!("The parameters given to the entry function call should not contains any calculation."));
+			},
+		};
+
+		if decl.var_type != param_type
+		{
+			return Result::Err(format!("Expecting parameter type of {}, but {} is given.", decl.var_type, param_type));
+		}
+	}
+
+	Result::Ok(())
+}
+
 pub fn func_call(
 	func_states : & Rc<FuncStatesStack<FuncState> >,
 	var_states  : & Rc<VarStatesStack<ExpValue, VarState> >,
@@ -182,14 +235,6 @@ pub fn func_call(
 	};
 
 	callee.func_call(func_defined_func_states, func_defined_var_states, func_states, var_states, call)
-}
-
-impl fmt::Display for FuncState
-{
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-	{
-		write!(f, "{}", self.f_pt)
-	}
 }
 
 

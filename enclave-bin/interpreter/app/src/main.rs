@@ -129,7 +129,8 @@ fn main()
 	let param_list = vec![211i32.to_aexp().to_exp()];
 	make_encl_func_call(&enclave, &example_prog_1_bytes, &param_list);
 
-	//let param_list_2 = vec![222i32.to_aexp().to_exp()];
+	let param_list = vec![222i32.to_aexp().to_exp()];
+	make_encl_func_call(&enclave, &example_prog_1_bytes, &param_list);
 
 	enclave.destroy();
 }
