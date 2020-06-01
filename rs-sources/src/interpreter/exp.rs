@@ -1,5 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
+use std::vec::Vec;
+use std::string::String;
 
 use super::super::ast::exp;
 use super::super::ast::data_type;
@@ -39,6 +41,80 @@ impl ExpValue
 			ExpValue::A(val) => val.to_aexp().to_exp(),
 			ExpValue::B(val) => val.to_bexp().to_exp(),
 		}
+	}
+
+	fn to_bytes_byte(&self) -> u8
+	{
+		match self
+		{
+			ExpValue::A(_) => 0u8,
+			ExpValue::B(_) => 1u8,
+		}
+	}
+
+	fn from_bytes_byte(bytes : &[u8]) -> Result<(&[u8], ExpValue), String>
+	{
+		if bytes.len() > 1
+		{
+			match bytes[0]
+			{
+				0u8 =>
+				{
+					let (bytes_left, res_val) = super::aexp::AexpValue::from_bytes(&bytes[1..])?;
+					return Result::Ok((bytes_left, ExpValue::A(res_val)));
+				},
+				1u8 =>
+				{
+					if bytes.len() > 2
+					{
+						let res_val = if bytes[1] == 0
+						{
+							false
+						}
+						else
+						{
+							true
+						};
+
+						return Result::Ok((&bytes[2..], ExpValue::B(res_val)))
+					}
+				},
+				_   => {},
+			}
+		}
+
+		Result::Err(format!("Failed to deserialize ExpValue."))
+	}
+
+	pub fn to_bytes(&self) -> Result<Vec<u8>, String>
+	{
+		let mut res_vec : Vec<u8> = vec![self.to_bytes_byte()];
+
+		match self
+		{
+			ExpValue::A(val) =>
+			{
+				res_vec.append(&mut (val.to_bytes()?))
+			},
+			ExpValue::B(val) =>
+			{
+				if !val
+				{
+					res_vec.push(0u8);
+				}
+				else
+				{
+					res_vec.push(1u8);
+				}
+			}
+		}
+
+		Result::Ok(res_vec)
+	}
+
+	pub fn from_bytes(bytes : &[u8]) -> Result<(&[u8], ExpValue), String>
+	{
+		Self::from_bytes_byte(bytes)
 	}
 
 	pub fn get_type(&self) -> data_type::DataType

@@ -1,6 +1,7 @@
 use crate::ast;
 
 use std::string::String;
+use std::string::ToString;
 use std::vec::Vec;
 
 /* Members of VarTypePair:
@@ -226,7 +227,9 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, is_cmd_global : bool, mut var_typ
                 var_types_clone.push(VarTypePair(var_decl.name.clone(), var_decl.var_type, true));
             }
 
-            match iterate_through_ast(*fn_cmd, false, var_types_clone, fn_types, (*prototype).ret_type) {
+            let fn_cmd_cp : ast::cmd::Cmd = (*fn_cmd).clone();
+
+            match iterate_through_ast(fn_cmd_cp, false, var_types_clone, fn_types, (*prototype).ret_type) {
                 Ok(_vt)    => Ok(var_types),
                 Err(why)   => Err(why),
             }

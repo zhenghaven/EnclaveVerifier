@@ -55,7 +55,7 @@ impl super::Serializible for DataType
 	}
 }
 
-impl super::Deserializible<DataType> for DataType
+impl super::Deserializible for DataType
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], DataType), String>
 	{

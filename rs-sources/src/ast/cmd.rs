@@ -4,6 +4,7 @@ use std::vec::Vec;
 use std::string::String;
 
 use std::boxed::Box;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub enum Cmd
@@ -15,7 +16,7 @@ pub enum Cmd
 	IfElse    {cond : Box<super::bexp::Bexp>, tr_cmd : Box<Cmd>, fa_cmd : Box<Cmd>},
 	WhileLoop {cond : Box<super::bexp::Bexp>, lp_cmd : Box<Cmd>},
 	Seq       {fst_cmd : Box<Cmd>, snd_cmd : Box<Cmd>},
-	FnDecl    {prototype : Box<super::func_general::FnProtoType>, fn_cmd : Box<Cmd>},
+	FnDecl    {prototype : Rc<super::func_general::FnProtoType>, fn_cmd : Rc<Cmd>},
 	Return    {e : Option<Box<super::exp::Exp>>},
 }
 
@@ -172,12 +173,12 @@ impl super::Serializible for Cmd
 			{
 				match e {
 					Some(expr) => {
-						res.append(&mut vec![1]); // To indicate expr
+						res.push(1u8); // To indicate expr
 						res.append(&mut (expr.to_bytes()?));
 						Result::Ok(res)
 					},
 					None       => {
-						res.append(&mut vec![0]); // To indicate no expr
+						res.push(0u8); // To indicate no expr
 						Result::Ok(res)
 					},
 				}
@@ -186,7 +187,7 @@ impl super::Serializible for Cmd
 	}
 }
 
-impl super::Deserializible<Cmd> for Cmd
+impl super::Deserializible for Cmd
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Cmd), String>
 	{
@@ -250,12 +251,14 @@ impl super::Deserializible<Cmd> for Cmd
 				},
 				ByteId::Return    =>
 				{
-					let has_expr  = bytes[1];
-					if has_expr == 1u8 {
+					let has_expr = bytes[1];
+					if has_expr == 1u8
+					{
 						let (bytes_left_1, parsed_e) = super::exp::Exp::from_bytes(&bytes[2..])?;
-						Result::Ok((bytes_left_1, ret(Some(parsed_e))))
-					} else {
-						Result::Ok((&bytes[2..], ret(None)))
+						Result::Ok((bytes_left_1, ret(Option::Some(parsed_e))))
+					} else
+					{
+						Result::Ok((&bytes[2..], ret(Option::None)))
 					}
 				},
 			}
@@ -301,6 +304,7 @@ impl fmt::Display for Cmd
 pub mod constructor_helper
 {
 	use std::boxed::Box;
+	use std::rc::Rc;
 
 	pub fn skip() -> super::Cmd
 	{
@@ -334,7 +338,7 @@ pub mod constructor_helper
 
 	pub fn fn_dc(prototype : super::super::func_general::FnProtoType, fn_cmd : super::Cmd) -> super::Cmd
 	{
-		super::Cmd::FnDecl {prototype : Box::new(prototype), fn_cmd : Box::new(fn_cmd)}
+		super::Cmd::FnDecl {prototype : Rc::new(prototype), fn_cmd : Rc::new(fn_cmd)}
 	}
 
 	pub fn ret(e : Option<super::super::exp::Exp>) -> super::Cmd

@@ -1,6 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
-
+use std::string::String;
+use std::string::ToString;
 use std::option::Option;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -20,9 +21,9 @@ pub trait AnyVariable<ValueType>
 
 pub trait AnyFunc
 {
-	fn from_decl(pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Self;
+	fn from_decl(pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Self;
 
-	fn to_decl(self) -> (super::func_general::FnProtoType, super::cmd::Cmd);
+	fn to_decl(self) -> (Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>);
 
 	fn get_prototype_ref(&self) -> &super::func_general::FnProtoType;
 
@@ -41,13 +42,21 @@ impl<T : fmt::Display + AnyFunc> FuncStates<T>
 		FuncStates { map : HashMap::new() }
 	}
 
-	pub fn decl(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Option<(super::func_general::FnProtoType, super::cmd::Cmd)>
+	pub fn decl(&mut self, pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Option<(Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>)>
 	{
-		let fun_name = pt.name.clone();
+		let mut mangled_fun_name = String::new();
+		mangled_fun_name.push_str(&pt.name);
+		mangled_fun_name.push('_');
 
-		if !self.map.contains_key(&fun_name)
+		for func_param_decl in pt.var_decl_list.iter()
 		{
-			match self.map.insert(fun_name.clone(), T::from_decl(pt, cmd))
+			mangled_fun_name.push_str(&func_param_decl.var_type.to_string());
+			mangled_fun_name.push('_');
+		}
+
+		if !self.map.contains_key(&mangled_fun_name)
+		{
+			match self.map.insert(mangled_fun_name.clone(), T::from_decl(pt, cmd))
 			{
 				Option::None => Option::None,
 				Option::Some(_) => // An error that should not happen
@@ -215,7 +224,7 @@ FuncStatesStack<FnStateType>
 		FuncStatesStack { parent : Option::Some(curr), state : FuncStates::new() }
 	}
 
-	pub fn decl_fn(&mut self, pt : super::func_general::FnProtoType, cmd : super::cmd::Cmd) -> Option<(super::func_general::FnProtoType, super::cmd::Cmd)>
+	pub fn decl_fn(&mut self, pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Option<(Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>)>
 	{
 		self.state.decl(pt, cmd)
 	}
@@ -254,6 +263,7 @@ fmt::Display for FuncStatesStack<FnStateType>
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(f, "Function States:\n")?;
+		println!("-----------");
 		match &self.parent
 		{
 			Option::Some(parent) => { write!(f, "{}", parent)?; },
@@ -357,6 +367,7 @@ fmt::Display for VarStatesStack<ValueType, VarStateType>
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(f, "Variable States:\n")?;
+		println!("-----------");
 		match &self.parent
 		{
 			Option::Some(parent) => { write!(f, "{}", parent)?; },

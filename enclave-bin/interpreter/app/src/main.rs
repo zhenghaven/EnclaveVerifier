@@ -3,25 +3,30 @@ extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
+use std::env;
+
+extern crate enclave_verifier;
+
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
 extern {
 	fn interpret_byte_code(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-		byte_code: *const u8, len: usize) -> sgx_status_t;
+		byte_code: *const u8, byte_code_len: usize,
+		param_list: *const u8, param_list_len: usize,) -> sgx_status_t;
 }
 
-fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str) -> Vec<u8>
+fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str, suffix : &str) -> Vec<u8>
 {
 	use std::fs::File;
 	use std::path::Path;
 	use std::io::prelude::*;
 
-	let file_path_string = format!("{}/{}.{}", byte_code_dir, prog_name, "impc");
+	let file_path_string = format!("{}/{}.{}", byte_code_dir, prog_name, suffix);
 	let file_path = Path::new(&file_path_string);
 
 	let mut file = match File::open(&file_path)
 	{
-		Err(why) => panic!("couldn't create {}: {}", file_path.display(), why),
+		Err(why) => panic!("couldn't open {}: {}", file_path.display(), why),
 		Ok(file) => file,
 	};
 
@@ -36,6 +41,42 @@ fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str) -> Vec<u8>
 	println!("Bytecode file read {} bytes total for program {}.", byte_code.len(), prog_name);
 
 	byte_code
+}
+
+fn make_encl_func_call(enclave : &SgxEnclave, prog_bytes : &[u8], param_list_bytes : &[u8]) -> sgx_status_t
+{
+	let mut retval = sgx_status_t::SGX_SUCCESS;
+
+	let result = unsafe {
+		interpret_byte_code(enclave.geteid(),
+		&mut retval,
+		prog_bytes.as_ptr() as * const u8,
+		prog_bytes.len(),
+		param_list_bytes.as_ptr() as * const u8,
+		param_list_bytes.len())
+	};
+
+	match result
+	{
+		sgx_status_t::SGX_SUCCESS => {},
+		_ =>
+		{
+			println!("[App]: ECALL Enclave Failed {}!", result.as_str());
+			return result;
+		}
+	};
+
+	match retval
+	{
+		sgx_status_t::SGX_SUCCESS => {},
+		_ =>
+		{
+			println!("[App]: ECALL Enclave returned {}!", retval.as_str());
+			return retval;
+		}
+	};
+
+	sgx_status_t::SGX_SUCCESS
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave>
@@ -56,10 +97,19 @@ fn main()
 {
 
 	let byte_code_dir : &'static str = "../../../rs-sources";
-	let example_prog_1_name = "is_prime";
-	let example_prog_1_bytes = read_byte_code_from_file(byte_code_dir, example_prog_1_name);
 
-	println!("[App]: Read bytecode file ({} byte(s)).", example_prog_1_bytes.len());
+	let args : Vec<String> = env::args().collect();
+	if args.len() != 3
+	{
+		panic!("[App]: Incorrect number of arguments provided.")
+	}
+
+	let example_prog_name = &args[1];
+	let example_param_name = &args[2];
+	let example_prog_bytes = read_byte_code_from_file(byte_code_dir, example_prog_name, "vimpc");
+	let example_param_bytes = read_byte_code_from_file(byte_code_dir, example_param_name, "param");
+
+	println!("[App]: Read bytecode file ({} byte(s)).", example_prog_bytes.len());
 
 	let enclave = match init_enclave() {
 		Ok(r) => {
@@ -72,21 +122,7 @@ fn main()
 		},
 	};
 
-	let mut retval = sgx_status_t::SGX_SUCCESS;
-
-	let result = unsafe {
-		interpret_byte_code(enclave.geteid(),
-		&mut retval,
-		example_prog_1_bytes.as_ptr() as * const u8,
-		example_prog_1_bytes.len())
-	};
-	match result {
-		sgx_status_t::SGX_SUCCESS => {},
-		_ => {
-			println!("[App]: ECALL Enclave Failed {}!", result.as_str());
-			return;
-		}
-	}
+	make_encl_func_call(&enclave, &example_prog_bytes, &example_param_bytes);
 
 	enclave.destroy();
 }

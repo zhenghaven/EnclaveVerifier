@@ -23,6 +23,12 @@ enclave {
     trusted {
         /* define ECALLs here. */
 
-        public sgx_status_t type_check_byte_code([in, size=len] const uint8_t* byte_code, size_t len);
+        public sgx_status_t type_check_byte_code(
+            [in, size=byte_code_len] const uint8_t* byte_code, size_t byte_code_len,
+            [out, count=4] uint64_t* out_bytes_read,
+            [out, count=32] uint8_t* out_pkey_x,
+            [out, count=32] uint8_t* out_pkey_y,
+            [out, count=8] uint32_t* out_sign_x,
+            [out, count=8] uint32_t* out_sign_y);
     };
 };

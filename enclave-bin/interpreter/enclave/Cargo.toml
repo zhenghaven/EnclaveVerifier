@@ -17,6 +17,9 @@ enclave_verifier = { path = "../../../rs-sources", features = ["sgx_env_ver"] }
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["backtrace"] }
 sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+
+base64 = { git = "https://github.com/mesalock-linux/rust-base64-sgx" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_alloc = { path = "../../../rs-libs/incubator-teaclave-sgx-sdk/sgx_alloc" }

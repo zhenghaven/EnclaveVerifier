@@ -1,5 +1,6 @@
 use std::fmt;
 use std::string::String;
+use std::string::ToString;
 use std::vec::Vec;
 use std::rc::Rc;
 
@@ -14,53 +15,17 @@ use ast::states::VarStatesStack;
 use ast::cmd;
 
 use super::exp::ExpValue;
+use super::aexp::CanConvertToAexpVal;
 
 #[derive(Clone)]
 pub struct FuncState
 {
-	f_pt : ast::func_general::FnProtoType,
-	cmd  : ast::cmd::Cmd,
+	f_pt : Rc<ast::func_general::FnProtoType>,
+	cmd  : Rc<ast::cmd::Cmd>,
 }
 
 impl FuncState
 {
-
-	fn func_call(
-		&self,
-		func_defined_func_states  : Rc<FuncStatesStack<FuncState> >,
-		func_defined_var_states   : Rc<VarStatesStack<ExpValue, VarState> >,
-		caller_func_states        : &Rc<FuncStatesStack<FuncState> >,
-		caller_defined_var_states : &Rc<VarStatesStack<ExpValue, VarState> >,
-		call        : &    func_general::FnCall)
-		-> Result<Option<ExpValue>, String>
-	{
-		use super::exp::CanEvalToExpVal;
-
-		let func_pt = self.get_prototype_ref();
-
-		if func_pt.var_decl_list.len() == call.exp_list.len()
-		{
-			let mut val_list : Vec<ExpValue> = Vec::new();
-			val_list.reserve(call.exp_list.len());
-
-			for e in call.exp_list.iter()
-			{
-				val_list.push(e.eval_to_exp_val(caller_func_states, caller_defined_var_states)?);
-			}
-
-			self.func_call_by_vals(func_defined_func_states, func_defined_var_states, val_list)
-		}
-		else
-		{
-			Result::Err(
-				format!(
-					"Function {} expects {} parameters, but {} are given.",
-					func_pt.name, func_pt.var_decl_list.len(), call.exp_list.len()
-				)
-			)
-		}
-
-	}
 
 	fn func_call_by_vals(
 		&self,
@@ -112,7 +77,13 @@ impl FuncState
 
 			let func_cmd = self.get_cmd_ref();
 
-			func_cmd.eval_to_exp_val(&mut callee_func_states, &mut callee_var_states)
+			match func_cmd.eval_to_exp_val(&mut callee_func_states, &mut callee_var_states)?
+			{
+				Option::Some(v) => //Commands in the function returns void or something:
+					Result::Ok(v),
+				Option::None    => //Commands in the function doesn't have return statement. That's fine, it's just a void function
+					Result::Ok(Option::None),
+			}
 		}
 		else
 		{
@@ -138,44 +109,15 @@ impl AnyFunc for FuncState
 		&self.cmd
 	}
 
-	fn from_decl(pt : func_general::FnProtoType, cmd : cmd::Cmd) -> FuncState
+	fn from_decl(pt : Rc<func_general::FnProtoType>, cmd : Rc<cmd::Cmd>) -> FuncState
 	{
 		FuncState { f_pt : pt, cmd : cmd }
 	}
 
-	fn to_decl(self) -> (func_general::FnProtoType, cmd::Cmd)
+	fn to_decl(self) -> (Rc<func_general::FnProtoType>, Rc<cmd::Cmd>)
 	{
 		(self.f_pt, self.cmd)
 	}
-}
-
-pub fn func_call(
-	func_states : & Rc<FuncStatesStack<FuncState> >,
-	var_states  : & Rc<VarStatesStack<ExpValue, VarState> >,
-	call        : & func_general::FnCall)
-	-> Result<Option<ExpValue>, String>
-{
-	let callee_opt = FuncStatesStack::search_fn(func_states, &call.name);
-	let (func_defined_func_states, func_defined_level) = match callee_opt
-	{
-		Option::Some(v) => v,
-		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
-	};
-
-	let func_defined_func_states_2 = func_defined_func_states.clone();
-	let callee = match func_defined_func_states_2.get_fn_at_curr_level(&call.name)
-	{
-		Option::Some(v) => v,
-		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
-	};
-
-	let func_defined_var_states = match VarStatesStack::get_level(var_states, func_defined_level)
-	{
-		Option::Some(v) => v,
-		Option::None    => return Result::Err(format!("Func states stack and var states stack mismatch."))
-	};
-
-	callee.func_call(func_defined_func_states, func_defined_var_states, func_states, var_states, call)
 }
 
 impl fmt::Display for FuncState
@@ -184,6 +126,74 @@ impl fmt::Display for FuncState
 	{
 		write!(f, "{}", self.f_pt)
 	}
+}
+
+pub fn get_mangled_func_name_from_name_n_exp_val(func_name : &String, exp_val_list : &Vec<ExpValue>) -> String
+{
+	let mut mangled_fun_name = String::new();
+	mangled_fun_name.push_str(func_name);
+	mangled_fun_name.push('_');
+
+	for e in exp_val_list.iter()
+	{
+		mangled_fun_name.push_str(&e.get_type().to_string());
+		mangled_fun_name.push('_');
+	}
+
+	mangled_fun_name
+}
+
+pub fn func_call(
+	func_states : & Rc<FuncStatesStack<FuncState> >,
+	var_states  : & Rc<VarStatesStack<ExpValue, VarState> >,
+	call        : & func_general::FnCall,
+	call_allow_com : bool)
+	-> Result<Option<ExpValue>, String>
+{
+	use super::exp::CanEvalToExpVal;
+
+	//println!("[DEBUG]: Making func call {}", call);
+
+	let mut val_list : Vec<ExpValue> = Vec::new();
+	val_list.reserve(call.exp_list.len());
+
+	for e in call.exp_list.iter()
+	{
+		if call_allow_com
+		{
+			val_list.push(e.eval_to_exp_val(func_states, var_states)?);
+		}
+		else
+		{
+			val_list.push(e.simp_eval_to_exp_val()?);
+		}
+	}
+
+	let mangled_func_name = get_mangled_func_name_from_name_n_exp_val(&call.name, &val_list);
+
+	let callee_opt = FuncStatesStack::search_fn(func_states, &mangled_func_name);
+	let (func_defined_func_states, func_defined_level) = match callee_opt
+	{
+		Option::Some(v) => v,
+		Option::None    => return Result::Err(format!("The function {} called is undefined.", mangled_func_name)),
+	};
+
+	let func_defined_func_states_2 = func_defined_func_states.clone();
+	let callee = match func_defined_func_states_2.get_fn_at_curr_level(&mangled_func_name)
+	{
+		Option::Some(v) => v,
+		Option::None    => return Result::Err(format!("The function {} called is undefined.", mangled_func_name)),
+	};
+
+	let func_defined_var_states = match VarStatesStack::get_level(var_states, func_defined_level)
+	{
+		Option::Some(v) => v,
+		Option::None    => return Result::Err(format!("Func states stack and var states stack mismatch."))
+	};
+
+	//println!("[DEBUG]: Making func call ... // {} // {}", callee.get_prototype_ref(), mangled_func_name);
+
+	callee.func_call_by_vals(func_defined_func_states, func_defined_var_states, val_list)
 }
 
 
@@ -212,6 +222,12 @@ impl AnyVariable<ExpValue> for VarState
 		if v.get_type() == self.t
 		{
 			self.s = Option::Some(v);
+
+			Result::Ok(())
+		}
+		else if v.get_type() == data_type::DataType::Int32 && self.t == data_type::DataType::Float32
+		{
+			self.s = Option::Some(ExpValue::from_aexp_val((v.to_aexp_val()?).promote_to_flo32()));
 
 			Result::Ok(())
 		}
