@@ -106,6 +106,15 @@ impl AexpValue
 	{
 		Self::from_bytes_byte(bytes)
 	}
+
+	pub fn promote_to_flo32(self) -> AexpValue
+	{
+		match self
+		{
+			AexpValue::Int32(v)   => AexpValue::Float32(v as f32),
+			AexpValue::Float32(_) => self,
+		}
+	}
 }
 
 impl super::exp::CanConvertToExpVal for AexpValue
@@ -386,7 +395,7 @@ impl CanEvalToAexpVal for aexp::Aexp
 			},
 			Aexp::FnCall{fc} =>
 			{
-				let func_call_res = states::func_call(func_states, var_states, fc)?;
+				let func_call_res = states::func_call(func_states, var_states, fc, true)?;
 				match func_call_res
 				{
 					Option::Some(ret_val) => ret_val.to_aexp_val(),

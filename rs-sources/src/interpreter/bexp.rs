@@ -135,7 +135,7 @@ impl CanEvalToBexpVal for bexp::Bexp
 			},
 			Bexp::FnCall{ fc }   =>
 			{
-				let func_call_res = states::func_call(func_states, var_states, fc)?;
+				let func_call_res = states::func_call(func_states, var_states, fc, true)?;
 				match func_call_res
 				{
 					Option::Some(ret_val) => ret_val.to_bexp_val(),

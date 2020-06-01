@@ -98,7 +98,7 @@ pub fn make_entry_call(prog : &interpreter::Program, param_list : Vec<ast::exp::
 {
 	let entry_call = ast::func_general::FnCall::new(format!("entry"), param_list);
 
-	match states::func_call(&prog.func_states, &prog.var_states, &entry_call)
+	match states::func_call(&prog.func_states, &prog.var_states, &entry_call, false)
 	{
 		Result::Ok(ok_val) => match ok_val
 		{

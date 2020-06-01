@@ -166,7 +166,7 @@ impl super::Serializible for Bexp
 	}
 }
 
-impl super::Deserializible<Bexp> for Bexp
+impl super::Deserializible for Bexp
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Bexp), String>
 	{

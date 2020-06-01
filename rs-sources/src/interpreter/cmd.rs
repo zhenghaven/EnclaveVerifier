@@ -34,6 +34,8 @@ impl CanEvalToExpVal for cmd::Cmd
 		use exp::CanEvalToExpVal;
 		use bexp::CanEvalToBexpVal;
 
+		//println!("[DEBUG]: Executing cmd: {}", self);
+
 		match self
 		{
 			Cmd::Skip                              => {},
@@ -72,7 +74,7 @@ impl CanEvalToExpVal for cmd::Cmd
 			},
 			Cmd::FnCall   { fc }                   =>
 			{
-				states::func_call(func_states, var_states, fc)?;
+				states::func_call(func_states, var_states, fc, true)?;
 			},
 			Cmd::IfElse   { cond, tr_cmd, fa_cmd } =>
 			{

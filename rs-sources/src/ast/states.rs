@@ -1,6 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
 use std::string::String;
+use std::string::ToString;
 use std::option::Option;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -43,11 +44,19 @@ impl<T : fmt::Display + AnyFunc> FuncStates<T>
 
 	pub fn decl(&mut self, pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Option<(Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>)>
 	{
-		let fun_name = pt.name.clone();
+		let mut mangled_fun_name = String::new();
+		mangled_fun_name.push_str(&pt.name);
+		mangled_fun_name.push('_');
 
-		if !self.map.contains_key(&fun_name)
+		for func_param_decl in pt.var_decl_list.iter()
 		{
-			match self.map.insert(fun_name.clone(), T::from_decl(pt, cmd))
+			mangled_fun_name.push_str(&func_param_decl.var_type.to_string());
+			mangled_fun_name.push('_');
+		}
+
+		if !self.map.contains_key(&mangled_fun_name)
+		{
+			match self.map.insert(mangled_fun_name.clone(), T::from_decl(pt, cmd))
 			{
 				Option::None => Option::None,
 				Option::Some(_) => // An error that should not happen

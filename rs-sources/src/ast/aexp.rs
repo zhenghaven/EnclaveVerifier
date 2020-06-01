@@ -129,7 +129,7 @@ impl super::Serializible for Aexp
 	}
 }
 
-impl super::Deserializible<Aexp> for Aexp
+impl super::Deserializible for Aexp
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Aexp), String>
 	{

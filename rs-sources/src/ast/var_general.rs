@@ -38,7 +38,7 @@ impl super::Serializible for VarDecl
 	}
 }
 
-impl super::Deserializible<VarDecl> for VarDecl
+impl super::Deserializible for VarDecl
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarDecl), String>
 	{
@@ -88,7 +88,7 @@ impl super::Serializible for VarRef
 	}
 }
 
-impl super::Deserializible<VarRef> for VarRef
+impl super::Deserializible for VarRef
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], VarRef), String>
 	{

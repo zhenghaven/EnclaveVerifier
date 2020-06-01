@@ -151,7 +151,7 @@ fn construct_example_prog_overloading() -> cmd::Cmd
 	// Bool o2 = overloaded(t0, t2);
 	let o2_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Bool, "o2".to_string()));
 	let o2_asg = assign(var_general::VarRef::from_str("o2"),
-		(aexp::Aexp::FnCall{
+		(bexp::Bexp::FnCall{
 			fc : func_general::FnCall::new("overloaded".to_string(), vec!["t0".to_aexp().to_exp(), "t2".to_bexp().to_exp()])
 		}).to_exp()
 	);
@@ -371,13 +371,13 @@ fn construct_example_prog_1() -> cmd::Cmd
 	prog
 }
 
-fn write_byte_code_to_file(code : &cmd::Cmd, prog_name : &str)
+fn write_byte_code_to_file<T : Serializible>(code : &T, prog_name : &str, suffix : &str)
 {
 	use std::fs::File;
 	use std::path::Path;
 	use std::io::prelude::*;
 
-	let file_path_string = format!("{}.{}", prog_name, "impc");
+	let file_path_string = format!("{}.{}", prog_name, suffix);
 	let file_path = Path::new(&file_path_string);
 
 	let mut file = match File::create(&file_path)
@@ -403,6 +403,9 @@ fn write_byte_code_to_file(code : &cmd::Cmd, prog_name : &str)
 
 fn main()
 {
+	use aexp::constructor_helper::ToAexp;
+	use exp::constructor_helper::ToExp;
+
 	println!("");
 
 	println!("Example function test result is_prime(x = 211): {}\n", is_prime(211i32));
@@ -418,7 +421,16 @@ fn main()
 	example_prog_1.to_indent_lines(&mut example_prog_1_lines);
 	println!("Example program {}:\n{}\n", example_prog_1_name, indent_lines_to_string(&example_prog_1_lines, '\t'));
 
-	write_byte_code_to_file(&example_prog_1, &example_prog_1_name);
+	write_byte_code_to_file(&example_prog_1, &example_prog_1_name, "impc");
+
+	let example_prog_1_param_list_1 = vec![211i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_1_param_list_1, &format!("{}_{}", example_prog_1_name, 1), "param");
+
+	let example_prog_1_param_list_2 = vec![222i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_1_param_list_2, &format!("{}_{}", example_prog_1_name, 2), "param");
+
+	let example_prog_1_param_list_3 = vec![222f32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_1_param_list_3, &format!("{}_{}", example_prog_1_name, 3), "param");
 
 	println!("===================================================\n");
 
@@ -428,12 +440,11 @@ fn main()
 
 	let example_prog_2_name = "test_bexps";
 	let example_prog_2 = construct_example_prog_bexps();
-	//let example_prog_1 = construct_example_prog_ifel();
 	let mut example_prog_2_lines : Vec<IndentString> = vec![];
 	example_prog_2.to_indent_lines(&mut example_prog_2_lines);
 	println!("Example program {}:\n{}\n", example_prog_2_name, indent_lines_to_string(&example_prog_2_lines, '\t'));
 
-	write_byte_code_to_file(&example_prog_2, &example_prog_2_name);
+	write_byte_code_to_file(&example_prog_2, &example_prog_2_name, "impc");
 
 	println!("===================================================\n");
 
@@ -447,7 +458,13 @@ fn main()
 	example_prog_3.to_indent_lines(&mut example_prog_3_lines);
 	println!("Example program {}:\n{}\n", example_prog_3_name, indent_lines_to_string(&example_prog_3_lines, '\t'));
 
-	write_byte_code_to_file(&example_prog_3, &example_prog_3_name);
+	write_byte_code_to_file(&example_prog_3, &example_prog_3_name, "impc");
+
+	let example_prog_3_param_list_1 : Vec<exp::Exp> = vec![5i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_3_param_list_1, &format!("{}_{}", example_prog_3_name, 1), "param");
+
+	let example_prog_3_param_list_2 : Vec<exp::Exp> = vec![50i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_3_param_list_2, &format!("{}_{}", example_prog_3_name, 2), "param");
 
 	println!("===================================================\n");
 
@@ -461,7 +478,10 @@ fn main()
 	example_prog_4.to_indent_lines(&mut example_prog_4_lines);
 	println!("Example program {}:\n{}\n", example_prog_4_name, indent_lines_to_string(&example_prog_4_lines, '\t'));
 
-	write_byte_code_to_file(&example_prog_4, &example_prog_4_name);
+	write_byte_code_to_file(&example_prog_4, &example_prog_4_name, "impc");
+
+	let example_prog_4_param_list_1 : Vec<exp::Exp> = vec![];
+	write_byte_code_to_file(&example_prog_4_param_list_1, &format!("{}_{}", example_prog_4_name, 1), "param");
 
 	println!("===================================================\n");
 }

@@ -3,9 +3,9 @@ extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
-extern crate enclave_verifier;
+use std::env;
 
-use enclave_verifier::ast;
+extern crate enclave_verifier;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -15,18 +15,18 @@ extern {
 		param_list: *const u8, param_list_len: usize,) -> sgx_status_t;
 }
 
-fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str) -> Vec<u8>
+fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str, suffix : &str) -> Vec<u8>
 {
 	use std::fs::File;
 	use std::path::Path;
 	use std::io::prelude::*;
 
-	let file_path_string = format!("{}/{}.{}", byte_code_dir, prog_name, "vimpc");
+	let file_path_string = format!("{}/{}.{}", byte_code_dir, prog_name, suffix);
 	let file_path = Path::new(&file_path_string);
 
 	let mut file = match File::open(&file_path)
 	{
-		Err(why) => panic!("couldn't create {}: {}", file_path.display(), why),
+		Err(why) => panic!("couldn't open {}: {}", file_path.display(), why),
 		Ok(file) => file,
 	};
 
@@ -43,18 +43,8 @@ fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str) -> Vec<u8>
 	byte_code
 }
 
-fn make_encl_func_call(enclave : &SgxEnclave, prog_bytes : &[u8], param_list : &Vec<ast::exp::Exp>) -> sgx_status_t
+fn make_encl_func_call(enclave : &SgxEnclave, prog_bytes : &[u8], param_list_bytes : &[u8]) -> sgx_status_t
 {
-	let param_list_bytes = match ast::func_general::FnCall::exp_list_to_bytes(param_list)
-	{
-		Result::Ok(val)  => val,
-		Result::Err(why) =>
-		{
-			println!("[App]: Failed to generate param list bytes; {}.", why);
-			return sgx_status_t::SGX_ERROR_UNEXPECTED;
-		}
-	};
-
 	let mut retval = sgx_status_t::SGX_SUCCESS;
 
 	let result = unsafe {
@@ -107,10 +97,19 @@ fn main()
 {
 
 	let byte_code_dir : &'static str = "../../../rs-sources";
-	let example_prog_1_name = "is_prime";
-	let example_prog_1_bytes = read_byte_code_from_file(byte_code_dir, example_prog_1_name);
 
-	println!("[App]: Read bytecode file ({} byte(s)).", example_prog_1_bytes.len());
+	let args : Vec<String> = env::args().collect();
+	if args.len() != 3
+	{
+		panic!("[App]: Incorrect number of arguments provided.")
+	}
+
+	let example_prog_name = &args[1];
+	let example_param_name = &args[2];
+	let example_prog_bytes = read_byte_code_from_file(byte_code_dir, example_prog_name, "vimpc");
+	let example_param_bytes = read_byte_code_from_file(byte_code_dir, example_param_name, "param");
+
+	println!("[App]: Read bytecode file ({} byte(s)).", example_prog_bytes.len());
 
 	let enclave = match init_enclave() {
 		Ok(r) => {
@@ -123,14 +122,7 @@ fn main()
 		},
 	};
 
-	use ast::aexp::constructor_helper::ToAexp;
-	use ast::exp::constructor_helper::ToExp;
-
-	let param_list = vec![211i32.to_aexp().to_exp()];
-	make_encl_func_call(&enclave, &example_prog_1_bytes, &param_list);
-
-	let param_list = vec![222i32.to_aexp().to_exp()];
-	make_encl_func_call(&enclave, &example_prog_1_bytes, &param_list);
+	make_encl_func_call(&enclave, &example_prog_bytes, &example_param_bytes);
 
 	enclave.destroy();
 }

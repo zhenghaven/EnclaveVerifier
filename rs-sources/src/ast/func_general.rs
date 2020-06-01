@@ -72,7 +72,7 @@ impl super::Serializible for FnProtoType
 	}
 }
 
-impl super::Deserializible<FnProtoType> for FnProtoType
+impl super::Deserializible for FnProtoType
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnProtoType), String>
 	{
@@ -149,45 +149,24 @@ impl FnCall
 		write!(f, "")
 	}
 
-	pub fn exp_list_to_bytes(exp_list : &Vec<super::exp::Exp>) -> Result<Vec<u8>, String>
-	{
-		use super::Serializible;
+}
 
+impl super::Serializible for Vec<super::exp::Exp>
+{
+	fn to_bytes(&self) -> Result<Vec<u8>, String>
+	{
 		let mut res : Vec<u8> = Vec::new();
 
-		let list_len : u64 = exp_list.len() as u64;
+		let list_len : u64 = self.len() as u64;
 
 		res.append(&mut super::primit_serialize::uint64_to_bytes(&list_len));
 
-		for exp_item in exp_list.iter()
+		for exp_item in self.iter()
 		{
 			res.append(&mut exp_item.to_bytes()?);
 		}
 
 		Result::Ok(res)
-	}
-
-	pub fn exp_list_from_bytes(bytes : &[u8]) -> Result<(&[u8], Vec<super::exp::Exp>), String>
-	{
-		use super::Deserializible;
-
-		let (bytes_left_1, list_len_u64) = super::primit_serialize::uint64_from_bytes(bytes)?;
-
-		let list_len = list_len_u64 as usize;
-
-		let mut exp_list : Vec<super::exp::Exp> = vec![];
-		let mut bytes_left_list : Vec<&[u8]> = vec![bytes_left_1];
-		exp_list.reserve(list_len);
-		bytes_left_list.reserve(list_len + 1);
-
-		for i in 0..list_len
-		{
-			let (bytes_left_i, exp_item) = super::exp::Exp::from_bytes(bytes_left_list[i])?;
-			bytes_left_list.push(bytes_left_i);
-			exp_list.push(exp_item);
-		}
-
-		Result::Ok((bytes_left_list[list_len], exp_list))
 	}
 }
 
@@ -206,21 +185,45 @@ impl super::Serializible for FnCall
 	{
 		let mut res = super::primit_serialize::string_to_bytes(&self.name);
 
-		res.append(&mut (Self::exp_list_to_bytes(&self.exp_list)?));
+		res.append(&mut (self.exp_list.to_bytes()?));
 
 		Result::Ok(res)
 	}
 }
 
-impl super::Deserializible<FnCall> for FnCall
+impl super::Deserializible for FnCall
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], FnCall), String>
 	{
 		let (bytes_left_1, name) = super::primit_serialize::string_from_bytes(bytes)?;
 
-		let (bytes_left_2, exp_list) = Self::exp_list_from_bytes(bytes_left_1)?;
+		let (bytes_left_2, exp_list) = Vec::from_bytes(bytes_left_1)?;
 
 		Result::Ok((bytes_left_2, FnCall{ name : name, exp_list : exp_list }))
+	}
+}
+
+impl super::Deserializible for Vec<super::exp::Exp>
+{
+	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Vec<super::exp::Exp>), String>
+	{
+		let (bytes_left_1, list_len_u64) = super::primit_serialize::uint64_from_bytes(bytes)?;
+
+		let list_len = list_len_u64 as usize;
+
+		let mut exp_list : Vec<super::exp::Exp> = Vec::new();
+		let mut bytes_left_list : Vec<&[u8]> = vec![bytes_left_1];
+		exp_list.reserve(list_len);
+		bytes_left_list.reserve(list_len + 1);
+
+		for i in 0..list_len
+		{
+			let (bytes_left_i, exp_item) = super::exp::Exp::from_bytes(bytes_left_list[i])?;
+			bytes_left_list.push(bytes_left_i);
+			exp_list.push(exp_item);
+		}
+
+		Result::Ok((bytes_left_list[list_len], exp_list))
 	}
 }
 

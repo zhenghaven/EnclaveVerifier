@@ -59,7 +59,7 @@ impl super::Serializible for Exp
 	}
 }
 
-impl super::Deserializible<Exp> for Exp
+impl super::Deserializible for Exp
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Exp), String>
 	{

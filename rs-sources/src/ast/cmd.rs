@@ -187,7 +187,7 @@ impl super::Serializible for Cmd
 	}
 }
 
-impl super::Deserializible<Cmd> for Cmd
+impl super::Deserializible for Cmd
 {
 	fn from_bytes(bytes : &[u8]) -> Result<(&[u8], Cmd), String>
 	{

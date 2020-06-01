@@ -1,5 +1,6 @@
 use std::fmt;
 use std::string::String;
+use std::string::ToString;
 use std::vec::Vec;
 use std::rc::Rc;
 
@@ -14,6 +15,7 @@ use ast::states::VarStatesStack;
 use ast::cmd;
 
 use super::exp::ExpValue;
+use super::aexp::CanConvertToAexpVal;
 
 #[derive(Clone)]
 pub struct FuncState
@@ -24,43 +26,6 @@ pub struct FuncState
 
 impl FuncState
 {
-
-	fn func_call(
-		&self,
-		func_defined_func_states  : Rc<FuncStatesStack<FuncState> >,
-		func_defined_var_states   : Rc<VarStatesStack<ExpValue, VarState> >,
-		caller_func_states        : &Rc<FuncStatesStack<FuncState> >,
-		caller_defined_var_states : &Rc<VarStatesStack<ExpValue, VarState> >,
-		call        : &    func_general::FnCall)
-		-> Result<Option<ExpValue>, String>
-	{
-		use super::exp::CanEvalToExpVal;
-
-		let func_pt = self.get_prototype_ref();
-
-		if func_pt.var_decl_list.len() == call.exp_list.len()
-		{
-			let mut val_list : Vec<ExpValue> = Vec::new();
-			val_list.reserve(call.exp_list.len());
-
-			for e in call.exp_list.iter()
-			{
-				val_list.push(e.eval_to_exp_val(caller_func_states, caller_defined_var_states)?);
-			}
-
-			self.func_call_by_vals(func_defined_func_states, func_defined_var_states, val_list)
-		}
-		else
-		{
-			Result::Err(
-				format!(
-					"Function {} expects {} parameters, but {} are given.",
-					func_pt.name, func_pt.var_decl_list.len(), call.exp_list.len()
-				)
-			)
-		}
-
-	}
 
 	fn func_call_by_vals(
 		&self,
@@ -163,69 +128,61 @@ impl fmt::Display for FuncState
 	}
 }
 
-pub fn entry_func_call_type_check(
-	func_states : & Rc<FuncStatesStack<FuncState> >,
-	call        : & func_general::FnCall) -> Result<(), String>
+pub fn get_mangled_func_name_from_name_n_exp_val(func_name : &String, exp_val_list : &Vec<ExpValue>) -> String
 {
-	let callee_opt = FuncStatesStack::search_fn(func_states, &call.name);
-	let (func_defined_func_states, _func_defined_level) = match callee_opt
-	{
-		Option::Some(v) => v,
-		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
-	};
+	let mut mangled_fun_name = String::new();
+	mangled_fun_name.push_str(func_name);
+	mangled_fun_name.push('_');
 
-	let func_defined_func_states_2 = func_defined_func_states.clone();
-	let callee = match func_defined_func_states_2.get_fn_at_curr_level(&call.name)
+	for e in exp_val_list.iter()
 	{
-		Option::Some(v) => v,
-		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
-	};
-
-	if callee.get_prototype_ref().var_decl_list.len() != call.exp_list.len()
-	{
-		return Result::Err(format!("The number of parameter given to the function call {} doesn't match the function's prototype.", callee.get_prototype_ref().name));
+		mangled_fun_name.push_str(&e.get_type().to_string());
+		mangled_fun_name.push('_');
 	}
 
-	for (decl, param) in callee.get_prototype_ref().var_decl_list.iter().zip(call.exp_list.iter())
-	{
-		use super::exp::CanEvalToExpVal;
-
-		let param_type = match param.simp_eval_to_exp_val()
-		{
-			Result::Ok(val) => val.get_type(),
-			Result::Err(_)  =>
-			{
-				return Result::Err(format!("The parameters given to the entry function call should not contains any calculation."));
-			},
-		};
-
-		if decl.var_type != param_type
-		{
-			return Result::Err(format!("Expecting parameter type of {}, but {} is given.", decl.var_type, param_type));
-		}
-	}
-
-	Result::Ok(())
+	mangled_fun_name
 }
 
 pub fn func_call(
 	func_states : & Rc<FuncStatesStack<FuncState> >,
 	var_states  : & Rc<VarStatesStack<ExpValue, VarState> >,
-	call        : & func_general::FnCall)
+	call        : & func_general::FnCall,
+	call_allow_com : bool)
 	-> Result<Option<ExpValue>, String>
 {
-	let callee_opt = FuncStatesStack::search_fn(func_states, &call.name);
+	use super::exp::CanEvalToExpVal;
+
+	//println!("[DEBUG]: Making func call {}", call);
+
+	let mut val_list : Vec<ExpValue> = Vec::new();
+	val_list.reserve(call.exp_list.len());
+
+	for e in call.exp_list.iter()
+	{
+		if call_allow_com
+		{
+			val_list.push(e.eval_to_exp_val(func_states, var_states)?);
+		}
+		else
+		{
+			val_list.push(e.simp_eval_to_exp_val()?);
+		}
+	}
+
+	let mangled_func_name = get_mangled_func_name_from_name_n_exp_val(&call.name, &val_list);
+
+	let callee_opt = FuncStatesStack::search_fn(func_states, &mangled_func_name);
 	let (func_defined_func_states, func_defined_level) = match callee_opt
 	{
 		Option::Some(v) => v,
-		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
+		Option::None    => return Result::Err(format!("The function {} called is undefined.", mangled_func_name)),
 	};
 
 	let func_defined_func_states_2 = func_defined_func_states.clone();
-	let callee = match func_defined_func_states_2.get_fn_at_curr_level(&call.name)
+	let callee = match func_defined_func_states_2.get_fn_at_curr_level(&mangled_func_name)
 	{
 		Option::Some(v) => v,
-		Option::None    => return Result::Err(format!("The function {} called is undefined.", call.name)),
+		Option::None    => return Result::Err(format!("The function {} called is undefined.", mangled_func_name)),
 	};
 
 	let func_defined_var_states = match VarStatesStack::get_level(var_states, func_defined_level)
@@ -234,7 +191,9 @@ pub fn func_call(
 		Option::None    => return Result::Err(format!("Func states stack and var states stack mismatch."))
 	};
 
-	callee.func_call(func_defined_func_states, func_defined_var_states, func_states, var_states, call)
+	//println!("[DEBUG]: Making func call ... // {} // {}", callee.get_prototype_ref(), mangled_func_name);
+
+	callee.func_call_by_vals(func_defined_func_states, func_defined_var_states, val_list)
 }
 
 
@@ -263,6 +222,12 @@ impl AnyVariable<ExpValue> for VarState
 		if v.get_type() == self.t
 		{
 			self.s = Option::Some(v);
+
+			Result::Ok(())
+		}
+		else if v.get_type() == data_type::DataType::Int32 && self.t == data_type::DataType::Float32
+		{
+			self.s = Option::Some(ExpValue::from_aexp_val((v.to_aexp_val()?).promote_to_flo32()));
 
 			Result::Ok(())
 		}
