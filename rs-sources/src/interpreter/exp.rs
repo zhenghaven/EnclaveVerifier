@@ -1,6 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
 use std::vec::Vec;
+use std::cell::RefCell;
 use std::string::String;
 
 use super::super::ast::exp;
@@ -11,7 +12,7 @@ use super::super::ast::states::VarStatesStack;
 use super::states::FuncState;
 use super::states::VarState;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum ExpValue
 {
 	A(super::aexp::AexpValue),
@@ -170,7 +171,7 @@ pub trait CanEvalToExpVal
 	fn eval_to_exp_val(
 		&self,
 		func_states : & Rc<FuncStatesStack<FuncState> >,
-		var_states  : & Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<ExpValue, String>;
 
 	fn simp_eval_to_exp_val(&self) -> Result<ExpValue, String>;
@@ -181,11 +182,13 @@ impl CanEvalToExpVal for exp::Exp
 	fn eval_to_exp_val(
 		&self,
 		func_states : & Rc<FuncStatesStack<FuncState> >,
-		var_states  : & Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<ExpValue, String>
 	{
 		use super::aexp::CanEvalToAexpVal;
 		use super::bexp::CanEvalToBexpVal;
+
+		//println!("[DEBUG]: Evaluating Exp: {}", self);
 
 		match self
 		{

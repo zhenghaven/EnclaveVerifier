@@ -247,7 +247,7 @@ pub extern "C" fn interpret_byte_code(byte_code: *const u8, byte_code_len: usize
 	println!("Program global states:");
 	println!("----------------------");
 	println!("{}", prog_inter.func_states);
-	println!("{}", prog_inter.var_states);
+	println!("{}", prog_inter.var_states.borrow());
 	println!("========================================================");
 
 

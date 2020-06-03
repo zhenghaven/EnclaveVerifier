@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::string::String;
 
 use super::super::ast::cmd;
@@ -18,7 +19,7 @@ pub trait CanEvalToExpVal
 	fn eval_to_exp_val(
 		&self,
 		func_states : & mut Rc<FuncStatesStack<FuncState> >,
-		var_states  : & mut Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & mut Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<Option<Option<ExpValue> >, String>;
 }
 
@@ -27,49 +28,41 @@ impl CanEvalToExpVal for cmd::Cmd
 	fn eval_to_exp_val(
 		&self,
 		func_states : & mut Rc<FuncStatesStack<FuncState> >,
-		var_states  : & mut Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & mut Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<Option<Option<ExpValue> >, String>
 	{
 		use cmd::Cmd;
 		use exp::CanEvalToExpVal;
 		use bexp::CanEvalToBexpVal;
 
-		//println!("[DEBUG]: Executing cmd: {}", self);
+		// println!("[DEBUG]: Executing cmd: {}", self);
 
 		match self
 		{
 			Cmd::Skip                              => {},
 			Cmd::VarDecl  { d }                    =>
 			{
-				let var_states_ref = match Rc::get_mut(var_states)
 				{
-					Some(v) => v,
-					None    => return Result::Err(format!("Failed to unwrap the RC."))
-				};
-
-				match var_states_ref.decl_var((**d).clone())
-				{
-					Option::None         => {},
-					Option::Some(ret_decl) =>
-						return Result::Err(format!("Failed to declare variable {}; It probably already declared at current stack.", ret_decl.name)),
+					match var_states.borrow_mut().decl_var((**d).clone())
+					{
+						Option::None         => {},
+						Option::Some(ret_decl) =>
+							return Result::Err(format!("Failed to declare variable {}; It probably already declared at current stack.", ret_decl.name)),
+					}
 				}
 			},
 			Cmd::Assign   { var, e }               =>
 			{
 				let e_val = e.eval_to_exp_val(func_states, var_states)?;
 
-				let var_states_ref = match Rc::get_mut(var_states)
 				{
-					Some(v) => v,
-					None    => return Result::Err(format!("Failed to unwrap the RC."))
-				};
-
-				let assi_ret = var_states_ref.var_assign(&var.name, e_val);
-				match assi_ret
-				{
-					Result::Ok(assi_res) => assi_res?,
-					Result::Err(_)       =>
-						return Result::Err(format!("Variable {} hasn't been declared", var.name)),
+					let assi_ret = var_states.borrow_mut().var_assign(&var.name, e_val);
+					match assi_ret
+					{
+						Result::Ok(assi_res) => assi_res?,
+						Result::Err(_)       =>
+							return Result::Err(format!("Failed to assign: Variable {} hasn't been declared.", var.name)),
+					}
 				}
 			},
 			Cmd::FnCall   { fc }                   =>
@@ -82,20 +75,37 @@ impl CanEvalToExpVal for cmd::Cmd
 
 				if cond_val
 				{
-					return tr_cmd.eval_to_exp_val(func_states, var_states)
+					let mut inner_func_states = Rc::new(FuncStatesStack::new_level(func_states.clone()));
+					let mut inner_var_states  = Rc::new(RefCell::new(VarStatesStack::new_level(var_states.clone())));
+
+					return tr_cmd.eval_to_exp_val(&mut inner_func_states, &mut inner_var_states)
 				}
 				else
 				{
-					return fa_cmd.eval_to_exp_val(func_states, var_states)
+					let mut inner_func_states = Rc::new(FuncStatesStack::new_level(func_states.clone()));
+					let mut inner_var_states  = Rc::new(RefCell::new(VarStatesStack::new_level(var_states.clone())));
+
+					return fa_cmd.eval_to_exp_val(&mut inner_func_states, &mut inner_var_states)
 				}
 			},
 			Cmd::WhileLoop{ cond, lp_cmd }         =>
 			{
 				let mut cond_val = cond.eval_to_bexp_val(func_states, var_states)?;
 
+				// {
+				// 	println!("[DEBUG]: Original Var states:\n{}\n-----END-----", var_states.borrow());
+				// }
+
 				while cond_val
 				{
-					match lp_cmd.eval_to_exp_val(func_states, var_states)?
+					let mut inner_func_states = Rc::new(FuncStatesStack::new_level(func_states.clone()));
+					let mut inner_var_states  = Rc::new(RefCell::new(VarStatesStack::new_level(var_states.clone())));
+
+					// {
+					// 	println!("[DEBUG]: New Var states:\n{}\n-----END-----", inner_var_states.borrow());
+					// }
+
+					match lp_cmd.eval_to_exp_val(&mut inner_func_states, &mut inner_var_states)?
 					{
 						Option::None    => {},
 						Option::Some(v) => { return Result::Ok(Option::Some(v)) },
@@ -127,7 +137,7 @@ impl CanEvalToExpVal for cmd::Cmd
 				{
 					Option::None            => {},
 					Option::Some((ret_pt, _)) =>
-						return Result::Err(format!("Function named {} has already been declared", ret_pt.name)),
+						return Result::Err(format!("Function named {} has already been declared.", ret_pt.name)),
 				}
 			},
 			Cmd::Return   { e }                    =>

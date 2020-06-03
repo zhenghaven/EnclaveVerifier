@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::string::String;
 
 use super::super::ast::bexp;
@@ -23,7 +24,7 @@ pub trait CanEvalToBexpVal
 	fn eval_to_bexp_val(
 		&self,
 		func_states : & Rc<FuncStatesStack<FuncState> >,
-		var_states  : & Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<bool, String>;
 
 	fn simp_eval_to_bexp_val(&self) -> Result<bool, String>;
@@ -34,7 +35,7 @@ impl CanEvalToBexpVal for bexp::Bexp
 	fn eval_to_bexp_val(
 		&self,
 		func_states : & Rc<FuncStatesStack<FuncState> >,
-		var_states  : & Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<bool, String>
 	{
 		use bexp::Bexp;
@@ -121,16 +122,16 @@ impl CanEvalToBexpVal for bexp::Bexp
 			},
 			Bexp::Var { v }      =>
 			{
-				let var_opt = var_states.var_read(&v.name);
+				let var_opt = var_states.borrow().var_read(&v.name);
 				match var_opt
 				{
 					Option::Some(var) =>
 						match var
 						{
 							Option::Some(e_val) => e_val.to_bexp_val(),
-							Option::None        => Result::Err(format!("Variable {} hasn't been initialized", v.name)),
+							Option::None        => Result::Err(format!("Variable {} hasn't been initialized.", v.name)),
 						},
-					Option::None      => Result::Err(format!("Variable {} hasn't been declared", v.name))
+					Option::None      => Result::Err(format!("BExp Variable {} hasn't been declared.", v.name))
 				}
 			},
 			Bexp::FnCall{ fc }   =>
@@ -139,7 +140,7 @@ impl CanEvalToBexpVal for bexp::Bexp
 				match func_call_res
 				{
 					Option::Some(ret_val) => ret_val.to_bexp_val(),
-					Option::None          => Result::Err(format!("Function {} doesn't return a value", fc.name))
+					Option::None          => Result::Err(format!("Function {} doesn't return a value.", fc.name))
 				}
 			},
 		}

@@ -2,6 +2,7 @@ use std::ops;
 use std::cmp;
 use std::fmt;
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::vec::Vec;
 use std::string::String;
 
@@ -15,7 +16,7 @@ use super::states;
 use super::states::FuncState;
 use super::states::VarState;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum AexpValue
 {
 	Int32(i32),
@@ -324,7 +325,7 @@ pub trait CanEvalToAexpVal
 	fn eval_to_aexp_val(
 		&self,
 		func_states : & Rc<FuncStatesStack<FuncState> >,
-		var_states  : & Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<AexpValue, String>;
 
 	fn simp_eval_to_aexp_val(&self) -> Result<AexpValue, String>;
@@ -335,7 +336,7 @@ impl CanEvalToAexpVal for aexp::Aexp
 	fn eval_to_aexp_val(
 		&self,
 		func_states : & Rc<FuncStatesStack<FuncState> >,
-		var_states  : & Rc<VarStatesStack<ExpValue, VarState> >)
+		var_states  : & Rc<RefCell<VarStatesStack<ExpValue, VarState> > >)
 		-> Result<AexpValue, String>
 	{
 		use aexp::Aexp;
@@ -381,16 +382,17 @@ impl CanEvalToAexpVal for aexp::Aexp
 			},
 			Aexp::Var{v} =>
 			{
-				let var_opt = var_states.var_read(&v.name);
+				let var_opt = var_states.borrow().var_read(&v.name);
+				//println!("[DEBUG]: Aexp Var {} found, {:?}.", v.name, var_opt);
 				match var_opt
 				{
 					Option::Some(var) =>
 						match var
 						{
 							Option::Some(e_val) => e_val.to_aexp_val(),
-							Option::None        => Result::Err(format!("Variable {} hasn't been initialized", v.name)),
+							Option::None        => Result::Err(format!("Variable {} hasn't been initialized.", v.name)),
 						},
-					Option::None      => Result::Err(format!("Variable {} hasn't been declared", v.name))
+					Option::None      => Result::Err(format!("AExp Variable {} hasn't been declared.", v.name))
 				}
 			},
 			Aexp::FnCall{fc} =>
@@ -399,7 +401,7 @@ impl CanEvalToAexpVal for aexp::Aexp
 				match func_call_res
 				{
 					Option::Some(ret_val) => ret_val.to_aexp_val(),
-					Option::None          => Result::Err(format!("Function {} doesn't return a value", fc.name))
+					Option::None          => Result::Err(format!("Function {} doesn't return a value.", fc.name))
 				}
 			},
 		}

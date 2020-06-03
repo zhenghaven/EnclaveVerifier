@@ -38,7 +38,7 @@ fn read_byte_code_from_file(byte_code_dir : &str, prog_name : &str, suffix : &st
 		Err(why) => panic!("couldn't read from {}: {}", file_path.display(), why),
 	}
 
-	println!("Bytecode file read {} bytes total for program {}.", byte_code.len(), prog_name);
+	println!("[App]: Bytecode file read {} bytes total for program {}.", byte_code.len(), prog_name);
 
 	byte_code
 }

@@ -3,6 +3,7 @@ use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 use super::super::ast;
 use ast::func_general;
@@ -30,7 +31,7 @@ impl FuncState
 	fn func_call_by_vals(
 		&self,
 		func_defined_func_states  : Rc<FuncStatesStack<FuncState> >,
-		func_defined_var_states   : Rc<VarStatesStack<ExpValue, VarState> >,
+		func_defined_var_states   : Rc<RefCell<VarStatesStack<ExpValue, VarState> > >,
 		val_list    : Vec<ExpValue>) -> Result<Option<ExpValue>, String>
 	{
 		use super::cmd::CanEvalToExpVal;
@@ -38,28 +39,13 @@ impl FuncState
 		let func_pt = self.get_prototype_ref();
 
 		let mut callee_func_states = Rc::new(FuncStatesStack::new_level(func_defined_func_states));
-		//let     callee_func_states = Rc::new(FuncStatesStack::new_level(func_defined_func_states));
-		let mut callee_var_states  = Rc::new(VarStatesStack::new_level(func_defined_var_states));
-
-		/*
-		let callee_func_states_ref = match Rc::get_mut(&mut callee_func_states)
-		{
-			Some(v) => v,
-			None    => return Result::Err(format!("Failed to unwrap the RC."))
-		};
-		*/
-
-		let callee_var_states_ref = match Rc::get_mut(&mut callee_var_states)
-		{
-			Some(v) => v,
-			None    => return Result::Err(format!("Failed to unwrap the RC."))
-		};
+		let mut callee_var_states  = Rc::new(RefCell::new(VarStatesStack::new_level(func_defined_var_states)));
 
 		if func_pt.var_decl_list.len() == val_list.len()
 		{
 			for (var_decl, val) in func_pt.var_decl_list.iter().zip(val_list.into_iter())
 			{
-				match callee_var_states_ref.decl_var(var_decl.clone())
+				match callee_var_states.borrow_mut().decl_var(var_decl.clone())
 				{
 					Option::Some(ret_decl) =>
 						return Result::Err(
@@ -67,7 +53,7 @@ impl FuncState
 					Option::None           => {},
 				}
 
-				match callee_var_states_ref.var_assign(&var_decl.name, val)
+				match callee_var_states.borrow_mut().var_assign(&var_decl.name, val)
 				{
 					Result::Ok(a_res) => a_res?,
 					Result::Err(_) => return Result::Err(
@@ -145,7 +131,7 @@ pub fn get_mangled_func_name_from_name_n_exp_val(func_name : &String, exp_val_li
 
 pub fn func_call(
 	func_states : & Rc<FuncStatesStack<FuncState> >,
-	var_states  : & Rc<VarStatesStack<ExpValue, VarState> >,
+	var_states  : & Rc<RefCell<VarStatesStack<ExpValue, VarState> > >,
 	call        : & func_general::FnCall,
 	call_allow_com : bool)
 	-> Result<Option<ExpValue>, String>
@@ -198,7 +184,7 @@ pub fn func_call(
 
 
 
-
+#[derive(Debug)]
 pub struct VarState
 {
 	pub s : Option<ExpValue>,

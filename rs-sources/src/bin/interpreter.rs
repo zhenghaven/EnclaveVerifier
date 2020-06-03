@@ -61,7 +61,7 @@ fn main()
 	println!("Program global states:");
 	println!("----------------------");
 	println!("{}", prog_inter_1.func_states);
-	println!("{}", prog_inter_1.var_states);
+	println!("{}", prog_inter_1.var_states.borrow());
 	println!("========================================================");
 
 	let param_list_1 = vec![211i32.to_aexp().to_exp()];

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::string::String;
 use std::string::ToString;
 use std::option::Option;
@@ -209,6 +210,7 @@ pub struct FuncStatesStack<FnStateType : fmt::Display + AnyFunc >
 {
 	pub parent : Option<Rc<FuncStatesStack<FnStateType> > >,
 	pub state : FuncStates<FnStateType>,
+	level_idx : usize,
 }
 
 impl<FnStateType : fmt::Display + AnyFunc >
@@ -216,12 +218,13 @@ FuncStatesStack<FnStateType>
 {
 	pub fn new() -> FuncStatesStack<FnStateType>
 	{
-		FuncStatesStack { parent : Option::None, state : FuncStates::new() }
+		FuncStatesStack { parent : Option::None, state : FuncStates::new(), level_idx : 0 }
 	}
 
 	pub fn new_level(curr : Rc<FuncStatesStack<FnStateType> >) -> FuncStatesStack<FnStateType>
 	{
-		FuncStatesStack { parent : Option::Some(curr), state : FuncStates::new() }
+		let new_level_idx = curr.level_idx + 1;
+		FuncStatesStack { parent : Option::Some(curr), state : FuncStates::new(), level_idx : new_level_idx }
 	}
 
 	pub fn decl_fn(&mut self, pt : Rc<super::func_general::FnProtoType>, cmd : Rc<super::cmd::Cmd>) -> Option<(Rc<super::func_general::FnProtoType>, Rc<super::cmd::Cmd>)>
@@ -262,35 +265,38 @@ fmt::Display for FuncStatesStack<FnStateType>
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		write!(f, "Function States:\n")?;
-		println!("-----------");
 		match &self.parent
 		{
 			Option::Some(parent) => { write!(f, "{}", parent)?; },
 			Option::None         => {},
 		}
 
+		write!(f, "Function States (level={}):\n", self.level_idx)?;
+		println!("-----------");
 		write!(f, "{}", self.state)
 	}
 }
 
 pub struct VarStatesStack<ValueType, VarStateType : fmt::Display + AnyVariable<ValueType> >
 {
-	pub parent : Option<Rc<VarStatesStack<ValueType, VarStateType> > >,
+	parent : Option<Rc<RefCell<VarStatesStack<ValueType, VarStateType> > > >,
 	pub state : VarStates<ValueType, VarStateType>,
+	level_idx : usize,
 }
 
 impl<ValueType, VarStateType : fmt::Display + AnyVariable<ValueType> >
 VarStatesStack<ValueType, VarStateType>
+	where ValueType : std::fmt::Debug
 {
 	pub fn new() -> VarStatesStack<ValueType, VarStateType>
 	{
-		VarStatesStack { parent : Option::None, state : VarStates::new() }
+		VarStatesStack { parent : Option::None, state : VarStates::new(), level_idx : 0 }
 	}
 
-	pub fn new_level(curr : Rc<VarStatesStack<ValueType, VarStateType> >) -> VarStatesStack<ValueType, VarStateType>
+	pub fn new_level(curr : Rc<RefCell<VarStatesStack<ValueType, VarStateType> > >) -> VarStatesStack<ValueType, VarStateType>
 	{
-		VarStatesStack { parent : Option::Some(curr), state : VarStates::new() }
+		let new_level_idx = curr.borrow().level_idx + 1;
+		VarStatesStack { parent : Option::Some(curr), state : VarStates::new(), level_idx : new_level_idx }
 	}
 
 	pub fn decl_var(&mut self, decl : super::var_general::VarDecl) -> Option<super::var_general::VarDecl>
@@ -305,14 +311,7 @@ VarStatesStack<ValueType, VarStateType>
 			Result::Ok (res_v) => Result::Ok(res_v),
 			Result::Err(ret_v) => match &mut self.parent
 			{
-				Option::Some(p) => {
-					let p_ref = match Rc::get_mut(p)
-					{
-						Some(v) => v,
-						None    => return Result::Err(ret_v)
-					};
-					p_ref.var_assign(name, ret_v)
-				},
+				Option::Some(p) => p.borrow_mut().var_assign(name, ret_v),
 				Option::None    => Result::Err(ret_v)
 			},
 		}
@@ -320,13 +319,14 @@ VarStatesStack<ValueType, VarStateType>
 
 	pub fn var_read(&self, name : &String) -> Option<Option<ValueType> >
 	{
+		//println!("[DEBUG]: Searching Var: {}", name);
 		match self.state.read(name)
 		{
 			Option::Some(res_v) => Option::Some(res_v),
 			Option::None        => match &self.parent
 			{
-				Option::Some(p) => p.var_read(name),
-				Option::None    => Option::None
+				Option::Some(p) => p.borrow().var_read(name),
+				Option::None    => Option::None,
 			},
 		}
 	}
@@ -338,13 +338,13 @@ VarStatesStack<ValueType, VarStateType>
 			Option::Some(res_v) => Option::Some(res_v),
 			Option::None        => match &self.parent
 			{
-				Option::Some(p) => p.var_get_type(name),
+				Option::Some(p) => p.borrow().var_get_type(name),
 				Option::None    => Option::None
 			},
 		}
 	}
 
-	pub fn get_level(curr : &Rc<VarStatesStack<ValueType, VarStateType> >, level : usize) -> Option<Rc<VarStatesStack<ValueType, VarStateType> > >
+	pub fn get_level(curr : &Rc<RefCell<VarStatesStack<ValueType, VarStateType> > >, level : usize) -> Option<Rc<RefCell<VarStatesStack<ValueType, VarStateType> > > >
 	{
 		if level == 0
 		{
@@ -352,7 +352,7 @@ VarStatesStack<ValueType, VarStateType>
 		}
 		else
 		{
-			match &curr.parent
+			match &curr.borrow().parent
 			{
 				Option::Some(p) => Self::get_level(p, level - 1),
 				Option::None    => Option::None,
@@ -366,14 +366,14 @@ fmt::Display for VarStatesStack<ValueType, VarStateType>
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		write!(f, "Variable States:\n")?;
-		println!("-----------");
 		match &self.parent
 		{
-			Option::Some(parent) => { write!(f, "{}", parent)?; },
+			Option::Some(parent) => { write!(f, "{}", parent.borrow())?; },
 			Option::None         => {},
 		}
 
+		write!(f, "Variable States (level={}):\n", self.level_idx)?;
+		println!("-----------");
 		write!(f, "{}", self.state)
 	}
 }

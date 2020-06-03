@@ -1,7 +1,7 @@
 pub struct Program
 {
 	pub func_states : std::rc::Rc<super::ast::states::FuncStatesStack<states::FuncState> >,
-	pub var_states  : std::rc::Rc<super::ast::states::VarStatesStack<exp::ExpValue, states::VarState> >,
+	pub var_states  : std::rc::Rc<std::cell::RefCell<super::ast::states::VarStatesStack<exp::ExpValue, states::VarState> > >,
 }
 
 impl Program
@@ -11,7 +11,7 @@ impl Program
 		Program
 		{
 			func_states : std::rc::Rc::new(super::ast::states::FuncStatesStack::new()),
-			var_states  : std::rc::Rc::new(super::ast::states::VarStatesStack::new()),
+			var_states  : std::rc::Rc::new(std::cell::RefCell::new(super::ast::states::VarStatesStack::new())),
 		}
 	}
 }
