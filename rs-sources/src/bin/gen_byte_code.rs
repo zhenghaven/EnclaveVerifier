@@ -35,22 +35,77 @@ fn is_prime(x : i32) -> bool
 	return is_prime;
 }
 
+fn construct_example_prog_glvar_and_returnv() -> cmd::Cmd
+{
+	use aexp::constructor_helper::*;
+	use bexp::constructor_helper::*;
+	use exp::constructor_helper::*;
+	use cmd::constructor_helper::*;
+
+	/* Program:
+	 * Int32 global_int1 = 0;
+	 * Int32 global_int2 = global_int1 + 1;
+	 *
+	 * fn entry(good_inp : Bool) -> () {
+	 *   if !good_inp {
+	 *     return;
+	 *   }
+	 *
+	 *   Int32 tmp = global_int1;
+	 *   global_int1 = global_int2;
+	 *   global_int2 = tmp;
+	 * } */
+
+	// Int32 global_int1 = 0;
+	let gl1_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "global_int1".to_string()));
+	let gl1_asg = assign(var_general::VarRef::from_str("global_int1"), 0i32.to_aexp().to_exp());
+
+	// Int32 global_int2 = global_int1 + 1;
+	let gl2_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "global_int2".to_string()));
+	let gl2_asg = assign(var_general::VarRef::from_str("global_int2"), ("global_int1".to_aexp() + 1i32.to_aexp()).to_exp());
+
+	// arg list: good_inp : Bool
+	let var_decl_list = vec![
+		var_general::VarDecl::new(data_type::DataType::Bool, "good_inp".to_string()),
+    ];
+
+	//fn entry(good_inp : Bool) -> ()
+	let fn_prototype = func_general::FnProtoType::new(data_type::DataType::Void, "entry".to_string(), var_decl_list);
+
+    let if_cmd = if_el("good_inp".to_bexp().not(), ret(None), skip());
+
+	// Int32 tmp = global_int1;
+	let tmp_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "tmp".to_string()));
+	let tmp_asg = assign(var_general::VarRef::from_str("tmp"), "global_int1".to_aexp().to_exp());
+
+	// global_int1 = global_int2; global_int2 = tmp;
+	let gl1_asg2 = assign(var_general::VarRef::from_str("global_int1"), "global_int2".to_aexp().to_exp());
+	let gl2_asg2 = assign(var_general::VarRef::from_str("global_int2"), "tmp".to_aexp().to_exp());
+
+    let entry_cmds = seq(if_cmd, seq(tmp_dec, seq(tmp_asg, seq(gl1_asg2, gl2_asg2))));
+
+	let entry_decl = fn_dc(fn_prototype, entry_cmds);
+
+	let global_seq = seq(gl1_dec, seq(gl1_asg, seq(gl2_dec, seq(gl2_asg, entry_decl))));
+	global_seq
+}
+
 fn construct_example_prog_ifel() -> cmd::Cmd
 {
 	use aexp::constructor_helper::*;
 	use exp::constructor_helper::*;
 	use cmd::constructor_helper::*;
 
-    /* Program:
-     * fn entry(x: Int32) -> () {
-     *   if (x >= 0) && (x <= 9) {
-     *     Int32 y;
-     *     y = x + 1;
-     *     return entry(y);
-     *   } else {
-     *     return x;
-     *   }
-     * } */
+	/* Program:
+	 * fn entry(x: Int32) -> Int32 {
+	 *   if (x >= 0) && (x <= 9) {
+	 *     Int32 y;
+	 *     y = x + 1;
+	 *     return entry(y);
+	 *   } else {
+	 *     return x;
+	 *   }
+	 * } */
 
 	// arg list: x: Int32
 	let var_decl_list = vec![
@@ -90,37 +145,37 @@ fn construct_example_prog_overloading() -> cmd::Cmd
 	use exp::constructor_helper::*;
 	use cmd::constructor_helper::*;
 
-    /* Program:
-     * fn entry() -> () {
-     *   Int32 t0 = 5;
-     *   Int32 t1 = 10;
-     *   Bool  t2 = true;
-     *
-     *   Int32   o1 = overloaded(t0, t1);
-     *   Bool    o2 = overloaded(t0, t2);
-     *   Float32 c3 = overloaded(t2, t1);
-     * };
-     *
-     * fn overloaded(x : Int32, y : Int32) -> Int32 {
-     *   return x+y
-     * };
-     *
-     * fn overloaded(x : Int32, y : Bool) -> Bool {
-     *   while (x > 0) {
-     *     x--;
-     *     y = !y
-     *   };
-     *   return y;
-     * };
-     *
-     * fn overloaded(x : Bool, y : Int32) -> Float32 {
-     *   if x {
-     *     return y;
-     *   } else {
-     *     return y+1;
-     *   }
-     * }
-     */
+	/* Program:
+	 * fn entry() -> () {
+	 *   Int32 t0 = 5;
+	 *   Int32 t1 = 10;
+	 *   Bool  t2 = true;
+	 *
+	 *   Int32   o1 = overloaded(t0, t1);
+	 *   Bool    o2 = overloaded(t0, t2);
+	 *   Float32 c3 = overloaded(t2, t1);
+	 * };
+	 *
+	 * fn overloaded(x : Int32, y : Int32) -> Int32 {
+	 *   return x+y
+	 * };
+	 *
+	 * fn overloaded(x : Int32, y : Bool) -> Bool {
+	 *   while (x > 0) {
+	 *     x--;
+	 *     y = !y
+	 *   };
+	 *   return y;
+	 * };
+	 *
+	 * fn overloaded(x : Bool, y : Int32) -> Float32 {
+	 *   if x {
+	 *     return y;
+	 *   } else {
+	 *     return y+1;
+	 *   }
+	 * }
+	 */
 
 	// arg list:
 	let var_decl_list = vec![];
@@ -657,25 +712,40 @@ fn main()
 
 	println!("===================================================\n");
 
-	println!("Example function test result scope_test(x = 3): {}\n", scope_test(3i32));
-	println!("Example function test result scope_test(x = 4): {}\n", scope_test(4i32));
 
 	//---------------
-	// Example prog 5: test for scopes
+	// Example prog 5: test for global variables and returns with no expressions
 	//---------------
 
-	let example_prog_5_name = "scope_test";
-	let example_prog_5 = construct_example_prog_scope_test();
+	let example_prog_5_name = "test_glvar_and_returnv";
+	let example_prog_5 = construct_example_prog_glvar_and_returnv();
 	let mut example_prog_5_lines : Vec<IndentString> = vec![];
 	example_prog_5.to_indent_lines(&mut example_prog_5_lines);
 	println!("Example program {}:\n{}\n", example_prog_5_name, indent_lines_to_string(&example_prog_5_lines, '\t'));
 
 	write_byte_code_to_file(&example_prog_5, &example_prog_5_name, "impc");
 
-	let example_prog_5_param_list_1 : Vec<exp::Exp> = vec![3i32.to_aexp().to_exp()];
-	write_byte_code_to_file(&example_prog_5_param_list_1, &format!("{}_{}", example_prog_5_name, 1), "param");
-	let example_prog_5_param_list_2 : Vec<exp::Exp> = vec![4i32.to_aexp().to_exp()];
-	write_byte_code_to_file(&example_prog_5_param_list_2, &format!("{}_{}", example_prog_5_name, 2), "param");
+	println!("===================================================\n");
+
+	//---------------
+	// Example prog 6: test for scopes
+	//---------------
+
+	println!("Example function test result scope_test(x = 3): {}", scope_test(3i32));
+	println!("Example function test result scope_test(x = 4): {}", scope_test(4i32));
+
+	let example_prog_6_name = "scope_test";
+	let example_prog_6 = construct_example_prog_scope_test();
+	let mut example_prog_6_lines : Vec<IndentString> = vec![];
+	example_prog_6.to_indent_lines(&mut example_prog_6_lines);
+	println!("Example program {}:\n{}\n", example_prog_6_name, indent_lines_to_string(&example_prog_6_lines, '\t'));
+
+	write_byte_code_to_file(&example_prog_6, &example_prog_6_name, "impc");
+
+	let example_prog_6_param_list_1 : Vec<exp::Exp> = vec![3i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_6_param_list_1, &format!("{}_{}", example_prog_6_name, 1), "param");
+	let example_prog_6_param_list_2 : Vec<exp::Exp> = vec![4i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_6_param_list_2, &format!("{}_{}", example_prog_6_name, 2), "param");
 
 	println!("===================================================\n");
 }
