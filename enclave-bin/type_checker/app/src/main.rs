@@ -196,8 +196,14 @@ fn main()
 	let mut sign_x : [u32; 8] = [0u32; 8];
 	let mut sign_y : [u32; 8] = [0u32; 8];
 	let mut out_bytes_read : usize = 0;
-	do_type_check(&enclave, &example_prog_bytes, &mut out_bytes_read, &mut pkey_x, &mut pkey_y, &mut sign_x, &mut sign_y);
-	write_verified_byte_code(byte_code_dir, example_prog_name, &example_prog_bytes[0..out_bytes_read], &pkey_x, &pkey_y, &sign_x, &sign_y);
+	match do_type_check(&enclave, &example_prog_bytes, &mut out_bytes_read, &mut pkey_x, &mut pkey_y, &mut sign_x, &mut sign_y)
+	{
+		sgx_status_t::SGX_SUCCESS =>
+		{
+			write_verified_byte_code(byte_code_dir, example_prog_name, &example_prog_bytes[0..out_bytes_read], &pkey_x, &pkey_y, &sign_x, &sign_y);
+		}
+		_                         => {},
+	}
 
 	enclave.destroy();
 }

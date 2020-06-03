@@ -371,6 +371,178 @@ fn construct_example_prog_1() -> cmd::Cmd
 	prog
 }
 
+fn scope_test_some_func(a : i32) -> i32
+{
+	let b : i32 = 10;
+	return a % b;
+}
+
+fn scope_test(a : i32) -> i32
+{
+	let mut b : i32 = a * 15;
+	let mut c : i32 = a * 12;
+	let mut z : i32;
+
+	if (a % 2) == 0
+	{
+		let b : i32 = a * 10;
+		z = scope_test_some_func(b);
+		while c > 0
+		{
+			let b : i32 = 1;
+			z = z + b;
+			c = c - 1;
+		}
+	}
+	else
+	{
+		let c : i32 = a * 5;
+		z = scope_test_some_func(c);
+		while b > 0
+		{
+			let c : i32 = 1;
+			z = z + c;
+			b = b - 1;
+		}
+	}
+
+	return (b / 2) + (c / 2) + z;
+}
+
+fn construct_example_prog_scope_test() -> cmd::Cmd
+{
+	use aexp::constructor_helper::*;
+//	use bexp::constructor_helper::*;
+	use exp::constructor_helper::*;
+	use cmd::constructor_helper::*;
+	use data_type::DataType;
+	use var_general::VarDecl;
+	use var_general::VarRef;
+	use func_general::FnCall;
+
+	// --- function 1 - some_func
+
+	//a : i32
+	let var_decl_list_1 = vec![
+		var_general::VarDecl::new(DataType::Int32, "a".to_string()),
+	];
+
+	//fn some_func(a : i32) -> i32
+	let fn_prototype_1 = func_general::FnProtoType::new(DataType::Int32, "some_func".to_string(), var_decl_list_1);
+
+	//let b : i32 = 10;
+	let fn_cmd_1_seq_1 = var_dc(VarDecl::new(DataType::Int32, "b".to_string()));
+	let fn_cmd_1_seq_2 = assign(VarRef::from_str("b"), 10.to_aexp().to_exp());
+	//return a % b;
+	let fn_cmd_1_seq_3 = ret(Option::Some(("a".to_aexp() % "b".to_aexp()).to_exp()));
+
+	//Constrcut Seq ---
+	let fn_cmd_1 = seq(fn_cmd_1_seq_1,
+		seq(fn_cmd_1_seq_2, fn_cmd_1_seq_3));
+
+	//Constrcut Function ---
+	let fn_1 = fn_dc(fn_prototype_1, fn_cmd_1);
+
+
+	// --- function 2 - scope_test
+
+	//a : i32
+	let var_decl_list_2 = vec![
+		var_general::VarDecl::new(DataType::Int32, "a".to_string()),
+	];
+
+	//fn scope_test(a : i32) -> i32
+	let fn_prototype_2 = func_general::FnProtoType::new(DataType::Int32, "entry".to_string(), var_decl_list_2);
+
+	//let mut b : i32 = a * 15;
+	let fn_cmd_2_seq_1 = var_dc(VarDecl::new(DataType::Int32, "b".to_string()));
+	let fn_cmd_2_seq_2 = assign(VarRef::from_str("b"), ("a".to_aexp() * 15.to_aexp()).to_exp());
+	//let mut c : i32 = a * 12;
+	let fn_cmd_2_seq_3 = var_dc(VarDecl::new(DataType::Int32, "c".to_string()));
+	let fn_cmd_2_seq_4 = assign(VarRef::from_str("c"), ("a".to_aexp() * 12.to_aexp()).to_exp());
+	//let mut z : i32;
+	let fn_cmd_2_seq_5 = var_dc(VarDecl::new(DataType::Int32, "z".to_string()));
+
+
+	// 	let b : i32 = a * 10;
+	let fn_cmd_2_if_tr_seq_1 = var_dc(VarDecl::new(DataType::Int32, "b".to_string()));
+	let fn_cmd_2_if_tr_seq_2 = assign(VarRef::from_str("b"), ("a".to_aexp() * 10.to_aexp()).to_exp());
+	// 	z = scope_test_some_func(b);
+	let fn_cmd_2_if_tr_seq_3 = assign(VarRef::from_str("z"), aexp::Aexp::FnCall{
+		fc : FnCall::new("some_func".to_string(), vec!["b".to_aexp().to_exp()])
+	}.to_exp());
+	// 		let b : i32 = 1;
+	let fn_cmd_2_if_tr_wl_1_seq_1 = var_dc(VarDecl::new(DataType::Int32, "b".to_string()));
+	let fn_cmd_2_if_tr_wl_1_seq_2 = assign(VarRef::from_str("b"), 1.to_aexp().to_exp());
+	// 		z = z + b;
+	let fn_cmd_2_if_tr_wl_1_seq_3 = assign(VarRef::from_str("z"), ("z".to_aexp() + "b".to_aexp()).to_exp());
+	// 		c = c - 1;
+	let fn_cmd_2_if_tr_wl_1_seq_4 = assign(VarRef::from_str("c"), ("c".to_aexp() - 1.to_aexp()).to_exp());
+	// 	while c > 0
+	// 	{
+	// 	}
+	let fn_cmd_2_if_tr_seq_4 = wh_lp("c".to_aexp().gt(0.to_aexp()),
+		seq(fn_cmd_2_if_tr_wl_1_seq_1,
+			seq(fn_cmd_2_if_tr_wl_1_seq_2,
+				seq(fn_cmd_2_if_tr_wl_1_seq_3, fn_cmd_2_if_tr_wl_1_seq_4))));
+
+	// 	let c : i32 = a * 5;
+	let fn_cmd_2_if_fl_seq_1 = var_dc(VarDecl::new(DataType::Int32, "c".to_string()));
+	let fn_cmd_2_if_fl_seq_2 = assign(VarRef::from_str("c"), ("a".to_aexp() * 5.to_aexp()).to_exp());
+	// 	z = scope_test_some_func(c);
+	let fn_cmd_2_if_fl_seq_3 = assign(VarRef::from_str("z"), aexp::Aexp::FnCall{
+		fc : FnCall::new("some_func".to_string(), vec!["c".to_aexp().to_exp()])
+	}.to_exp());
+	// 		let c : i32 = 1;
+	let fn_cmd_2_if_fl_wl_1_seq_1 = var_dc(VarDecl::new(DataType::Int32, "c".to_string()));
+	let fn_cmd_2_if_fl_wl_1_seq_2 = assign(VarRef::from_str("c"), 1.to_aexp().to_exp());
+	// 		z = z + c;
+	let fn_cmd_2_if_fl_wl_1_seq_3 = assign(VarRef::from_str("z"), ("z".to_aexp() + "c".to_aexp()).to_exp());
+	// 		b = b - 1;
+	let fn_cmd_2_if_fl_wl_1_seq_4 = assign(VarRef::from_str("b"), ("b".to_aexp() - 1.to_aexp()).to_exp());
+	// 	while b > 0
+	// 	{
+	// 	}
+	let fn_cmd_2_if_fl_seq_4 = wh_lp("b".to_aexp().gt(0.to_aexp()),
+	seq(fn_cmd_2_if_fl_wl_1_seq_1,
+		seq(fn_cmd_2_if_fl_wl_1_seq_2,
+			seq(fn_cmd_2_if_fl_wl_1_seq_3, fn_cmd_2_if_fl_wl_1_seq_4))));
+
+	// if (a % 2) == 0
+	// { }
+	// else
+	// { }
+	let fn_cmd_2_seq_6 = if_el(
+		("a".to_aexp() % 2.to_aexp()).aeq(0.to_aexp()),
+		seq(fn_cmd_2_if_tr_seq_1,
+			seq(fn_cmd_2_if_tr_seq_2,
+				seq(fn_cmd_2_if_tr_seq_3, fn_cmd_2_if_tr_seq_4))),
+		seq(fn_cmd_2_if_fl_seq_1,
+			seq(fn_cmd_2_if_fl_seq_2,
+				seq(fn_cmd_2_if_fl_seq_3, fn_cmd_2_if_fl_seq_4))));
+
+	// return (b / 2) + (c / 2) + z;
+	let fn_cmd_2_seq_7 = ret(Some((("b".to_aexp() / 2.to_aexp()) + ("c".to_aexp() / 2.to_aexp()) + "z".to_aexp()).to_exp()));
+
+	//Constrcut Seq ---
+	let fn_cmd_2 = seq(
+		fn_cmd_2_seq_1, seq(
+			fn_cmd_2_seq_2, seq(
+				fn_cmd_2_seq_3, seq(
+					fn_cmd_2_seq_4, seq(
+						fn_cmd_2_seq_5, seq(
+							fn_cmd_2_seq_6, seq(
+								fn_cmd_2_seq_7, skip())))))));
+
+	//Constrcut Function ---
+	let fn_2 = fn_dc(fn_prototype_2, fn_cmd_2);
+
+	// --- Constrcut Program ---
+	let prog = seq(fn_1, fn_2);
+
+	prog
+}
+
 fn write_byte_code_to_file<T : Serializible>(code : &T, prog_name : &str, suffix : &str)
 {
 	use std::fs::File;
@@ -482,6 +654,28 @@ fn main()
 
 	let example_prog_4_param_list_1 : Vec<exp::Exp> = vec![];
 	write_byte_code_to_file(&example_prog_4_param_list_1, &format!("{}_{}", example_prog_4_name, 1), "param");
+
+	println!("===================================================\n");
+
+	println!("Example function test result scope_test(x = 3): {}\n", scope_test(3i32));
+	println!("Example function test result scope_test(x = 4): {}\n", scope_test(4i32));
+
+	//---------------
+	// Example prog 5: test for scopes
+	//---------------
+
+	let example_prog_5_name = "scope_test";
+	let example_prog_5 = construct_example_prog_scope_test();
+	let mut example_prog_5_lines : Vec<IndentString> = vec![];
+	example_prog_5.to_indent_lines(&mut example_prog_5_lines);
+	println!("Example program {}:\n{}\n", example_prog_5_name, indent_lines_to_string(&example_prog_5_lines, '\t'));
+
+	write_byte_code_to_file(&example_prog_5, &example_prog_5_name, "impc");
+
+	let example_prog_5_param_list_1 : Vec<exp::Exp> = vec![3i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_5_param_list_1, &format!("{}_{}", example_prog_5_name, 1), "param");
+	let example_prog_5_param_list_2 : Vec<exp::Exp> = vec![4i32.to_aexp().to_exp()];
+	write_byte_code_to_file(&example_prog_5_param_list_2, &format!("{}_{}", example_prog_5_name, 2), "param");
 
 	println!("===================================================\n");
 }
