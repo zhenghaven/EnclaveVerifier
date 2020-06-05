@@ -99,20 +99,27 @@ pub extern "C" fn type_check_byte_code(
 	println!("");
 
 	println!("[Enclave]: Iteration test:");
-	let var_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
+
+	let mut glvar_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
 	let mut fn_vec:  Vec<type_checker::type_checker::FuncIdentifierTuple> = Vec::new();
-	type_checker::type_checker::gather_fn_types(&example_prog, &mut fn_vec);
-	let res = type_checker::type_checker::iterate_through_ast(example_prog, var_vec, &fn_vec, ast::data_type::DataType::Void);
-	match res
-	{
-		Ok(_)    => println!("[Enclave]: Successful type checking!"),
+	match type_checker::type_checker::gather_fn_types(&example_prog, &mut glvar_vec, &mut fn_vec) {
 		Err(why) =>
 		{
 			println!("[Enclave]: Failed type checking:\n{}", why);
 			return sgx_status_t::SGX_ERROR_UNEXPECTED;
-		}
+		},
+		_ => (),
+	};
+	let var_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
+	let res = type_checker::type_checker::iterate_through_ast(example_prog, true, var_vec, &fn_vec, ast::data_type::DataType::Void);
+	match res {
+		Ok(_)    => println!("Successful type checking!"),
+		Err(why) =>
+		{
+			println!("[Enclave]: Failed type checking:\n{}", why);
+			return sgx_status_t::SGX_ERROR_UNEXPECTED;
+		},
 	}
-
 
 	// ------------------------------------------
 	// 4. Generate signature:
