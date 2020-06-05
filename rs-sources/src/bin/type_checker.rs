@@ -67,9 +67,13 @@ fn main()
 
     // Run type-checker on this AST.
 	println!("Iteration test:");
-	let var_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
+	let mut glvar_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
 	let mut fn_vec:  Vec<type_checker::type_checker::FuncIdentifierTuple> = Vec::new();
-	type_checker::type_checker::gather_fn_types(&example_prog_1, &mut fn_vec);
+	match type_checker::type_checker::gather_fn_types(&example_prog_1, &mut glvar_vec, &mut fn_vec) {
+		Err(err) => println!("Failed type checking:\n{}", err),
+		_ => (),
+	};
+	let var_vec: Vec<type_checker::type_checker::VarTypePair> = Vec::new();
 	let res = type_checker::type_checker::iterate_through_ast(example_prog_1, true, var_vec, &fn_vec, ast::data_type::DataType::Void);
 	match res {
 		Ok(_)    => println!("Successful type checking!"),

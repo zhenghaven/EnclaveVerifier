@@ -316,6 +316,11 @@ pub mod constructor_helper
 		super::Cmd::VarDecl {d : Box::new(d)}
 	}
 
+	pub fn c_fncall(e : super::super::func_general::FnCall) -> super::Cmd
+	{
+		super::Cmd::FnCall {fc : e}
+	}
+
 	pub fn assign(var : super::super::var_general::VarRef, e : super::super::exp::Exp) -> super::Cmd
 	{
 		super::Cmd::Assign {var : Box::new(var), e : Box::new(e)}

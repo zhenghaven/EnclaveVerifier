@@ -90,6 +90,102 @@ fn construct_example_prog_glvar_and_returnv() -> cmd::Cmd
 	global_seq
 }
 
+fn construct_example_prog_fcall_1() -> cmd::Cmd
+{
+	use cmd::constructor_helper::*;
+
+	/* Program:
+	 * fn entry() -> () {
+	 *   testfunc()
+	 *   return;
+	 * }
+	 *
+	 * fn testfunc() -> () {
+	 *   return;
+	 * } */
+
+	// arg list:
+	let var_decl_list_entry = vec![];
+	let var_decl_list_testf = vec![];
+
+	//fn entry() -> ()
+	let fn_prototype_e = func_general::FnProtoType::new(data_type::DataType::Void, "entry".to_string(), var_decl_list_entry);
+
+	//fn testfunc() -> ()
+	let fn_prototype_t = func_general::FnProtoType::new(data_type::DataType::Void, "testfunc".to_string(), var_decl_list_testf);
+
+	// testfunc(); return;
+	let ret_e = ret(None);
+	let fcl_e = c_fncall(func_general::FnCall::new("testfunc".to_string(), vec![]));
+	let seq_e = seq(ret_e, fcl_e);
+
+	// return;
+	let ret_t = ret(None);
+
+	let entry_decl = fn_dc(fn_prototype_e, seq_e);
+	let testfunc_decl = fn_dc(fn_prototype_t, ret_t);
+	seq(entry_decl, testfunc_decl)
+}
+
+fn construct_example_prog_fcall_2() -> cmd::Cmd
+{
+	use aexp::constructor_helper::*;
+	use exp::constructor_helper::*;
+	use cmd::constructor_helper::*;
+
+	/* Program:
+	 * fn testfunc(x : Int32) -> Int32 {
+	 *  return x + 1;
+	 * }
+	 *
+	 * Int32 a = 0;
+	 * a = testfunc(a);
+	 *
+	 * fn entry() -> Int32 {
+	 *   Int32 b = 5;
+	 *   return testfunc(b);
+	 * } */
+
+	// arg list: x : Int32
+	let var_decl_list_testf = vec![
+		var_general::VarDecl::new(data_type::DataType::Int32, "x".to_string()),
+	];
+
+	//fn testfunc(x : Int32) -> Int32
+	let fn_prototype_t = func_general::FnProtoType::new(data_type::DataType::Int32, "testfunc".to_string(), var_decl_list_testf);
+
+	// return x + 1
+	let ret_t = ret(Some(("x".to_string().to_aexp() + 1i32.to_aexp()).to_exp()));
+
+	// Int32 a = 0; a = testfunc(a);
+	let a_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "a".to_string()));
+	let a_asg_1 = assign(var_general::VarRef::from_str("a"), 0i32.to_aexp().to_exp());
+	let a_asg_2 = assign(var_general::VarRef::from_str("a"),
+		(aexp::Aexp::FnCall{
+			fc : func_general::FnCall::new("testfunc".to_string(), vec!["a".to_aexp().to_exp()])
+	}).to_exp());
+
+	// arg list:
+	let var_decl_list_entry = vec![];
+
+	//fn entry() -> Int32
+	let fn_prototype_e = func_general::FnProtoType::new(data_type::DataType::Int32, "entry".to_string(), var_decl_list_entry);
+
+	// Int32 b = 5; return testfunc(b);
+	let b_dec = var_dc(var_general::VarDecl::new(data_type::DataType::Int32, "b".to_string()));
+	let b_asg = assign(var_general::VarRef::from_str("b"), 5i32.to_aexp().to_exp());
+	let ret_e = ret(Some(
+		(aexp::Aexp::FnCall{
+			fc : func_general::FnCall::new("testfunc".to_string(), vec!["b".to_aexp().to_exp()])
+	}).to_exp()));
+	let seq_e = seq(b_dec, seq(b_asg, ret_e));
+
+
+	let entry_decl = fn_dc(fn_prototype_e, seq_e);
+	let testfunc_decl = fn_dc(fn_prototype_t, ret_t);
+	seq(testfunc_decl, seq(a_dec, seq(a_asg_1, seq(a_asg_2, entry_decl))))
+}
+
 fn construct_example_prog_ifel() -> cmd::Cmd
 {
 	use aexp::constructor_helper::*;
@@ -712,7 +808,6 @@ fn main()
 
 	println!("===================================================\n");
 
-
 	//---------------
 	// Example prog 5: test for global variables and returns with no expressions
 	//---------------
@@ -748,4 +843,30 @@ fn main()
 	write_byte_code_to_file(&example_prog_6_param_list_2, &format!("{}_{}", example_prog_6_name, 2), "param");
 
 	println!("===================================================\n");
+
+	//---------------
+	// Example prog 7: testing local function call before function decl
+	//---------------
+
+	let example_prog_7_name = "test_fcall_1";
+	let example_prog_7 = construct_example_prog_fcall_1();
+	let mut example_prog_7_lines : Vec<IndentString> = vec![];
+	example_prog_7.to_indent_lines(&mut example_prog_7_lines);
+	println!("Example program {}:\n{}\n", example_prog_7_name, indent_lines_to_string(&example_prog_7_lines, '\t'));
+
+	write_byte_code_to_file(&example_prog_7, &example_prog_7_name, "impc");
+
+	println!("===================================================\n");
+
+	//---------------
+	// Example prog 8: testing function call in global scope
+	//---------------
+
+	let example_prog_8_name = "test_fcall_2";
+	let example_prog_8 = construct_example_prog_fcall_2();
+	let mut example_prog_8_lines : Vec<IndentString> = vec![];
+	example_prog_8.to_indent_lines(&mut example_prog_8_lines);
+	println!("Example program {}:\n{}\n", example_prog_8_name, indent_lines_to_string(&example_prog_8_lines, '\t'));
+
+	write_byte_code_to_file(&example_prog_8, &example_prog_8_name, "impc");
 }

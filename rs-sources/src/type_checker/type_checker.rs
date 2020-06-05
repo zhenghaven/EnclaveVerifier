@@ -128,7 +128,7 @@ pub fn iterate_through_ast(cmd: ast::cmd::Cmd, is_cmd_global : bool, mut var_typ
                     Err(format!("Error: function call {}, but no matching declaration", fc.name))
                 }
             }
-        }
+        },
 
         // If-Else
         ast::cmd::Cmd::IfElse{cond, tr_cmd, fa_cmd} => {
@@ -540,8 +540,22 @@ fn get_var_type(var_types: &std::vec::Vec<VarTypePair>, var_name: &String) -> (b
  * function declarations. Once it sees one, it adds that function's
  * name, argument types, and return type to a vector which holds
  * all the declarations. This vector is the output of this function. */
-pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIdentifierTuple>) -> () {
+pub fn gather_fn_types(cmd: &ast::cmd::Cmd, glvar_types: &mut std::vec::Vec<VarTypePair>,
+                       fn_types: &mut std::vec::Vec<FuncIdentifierTuple>) -> Result<bool, String> {
     match cmd {
+        // Variable Type Declaration
+        ast::cmd::Cmd::VarDecl{d} => {
+            //1. Check to see if var's type was already declared.
+            //2. If so, error.
+            //3. If not, then add to var_types vector and pass to next command.
+            if (*glvar_types).iter().any(|i| i.0 == (*d).name) {
+                Err(format!("Error: variable '{}' was declared more than once.", *d))
+            } else {
+                glvar_types.push(VarTypePair((*d).name.clone(), (*d).var_type, false));
+                Ok(true)
+            }
+        },
+
         // Functional Declarations
         ast::cmd::Cmd::FnDecl{prototype, fn_cmd : _} => {
             /* If a function declaration is found, we'll need to record
@@ -551,20 +565,79 @@ pub fn gather_fn_types(cmd: &ast::cmd::Cmd, fn_types: &mut std::vec::Vec<FuncIde
             for var_decl in &((*prototype).var_decl_list) {
                 // Add the type of each argument to arg_type_list.
                 arg_type_list.push(var_decl.var_type);
+            };
+
+            // Make sure matching FnDecl hasn't already been made.
+            match get_fn_return_type(fn_types, &(*prototype).name, &arg_type_list) {
+                (false, _) => {
+                    (*fn_types).push(FuncIdentifierTuple((*prototype).name.clone(), (*prototype).ret_type, arg_type_list));
+                    Ok(true)
+                },
+                (true,  _) => {
+                    Err(format!("Error: global function {}, declared exact same function prototype more than once.", (*prototype).name))
+                },
             }
-            (*fn_types).push(FuncIdentifierTuple((*prototype).name.clone(), (*prototype).ret_type, arg_type_list))
+        },
+
+        ast::cmd::Cmd::FnCall{fc} => {
+            /* If a function call is encountered at the global scope,
+             * we enforce that the associated function has been
+             * declared before its use (not the same as fcalls found
+             * in function commands). */
+            let mut fncall_arg_types : std::vec::Vec<ast::data_type::DataType> = vec![];
+            let mut err = false;
+            let mut err_string = "".to_string();
+            for arg in &fc.exp_list {
+                let arg_res = match arg {
+                    ast::exp::Exp::A{e} => {
+                        check_aexpr_type(&e, glvar_types, fn_types)
+                    },
+                    ast::exp::Exp::B{e} => {
+                        check_bexpr_type(&e, glvar_types, fn_types)
+                    },
+                };
+                let arg_type : ast::data_type::DataType;
+                arg_type = match arg_res {
+                    Ok(etype) => etype,
+                    Err(why)  => {
+                        err = true;
+                        err_string = why;
+                        break;
+                    },
+                };
+                fncall_arg_types.push(arg_type);
+            };
+
+            if err {
+                Err(err_string)
+            } else {
+                // Check to see if a matching FnDecl exists.
+                let (found, _) = get_fn_return_type(fn_types, &fc.name, &fncall_arg_types);
+                if found {
+                    Ok(true)
+                } else {
+                    Err(format!("Error: global function call {}, but no matching declaration or declaration came after function call.", fc.name))
+                }
+            }
         },
 
         // Seq
         ast::cmd::Cmd::Seq{fst_cmd, snd_cmd} => {
             // Check sub-sequences to see if any function declarations.
-            gather_fn_types(fst_cmd, fn_types);
-            gather_fn_types(snd_cmd, fn_types);
-            ()
+            match gather_fn_types(fst_cmd, glvar_types, fn_types) {
+                Ok(_b) => {
+                    match gather_fn_types(snd_cmd, glvar_types, fn_types) {
+                        Ok(b)    => Ok(b),
+                        Err(why) => Err(why),
+                    }
+                },
+                Err(why) => Err(why),
+            }
         },
 
+
         // If not function dec or seq, do nothing (since no possible function declaration).
-        _ => ()
+        _ => Ok(true)
     }
 }
 
